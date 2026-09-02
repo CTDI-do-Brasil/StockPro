@@ -1,0 +1,6 @@
+{
+  "name": "Gestão de Estoque TI & Engenharia",
+  "description": "Sistema completo para controle de estoque, inventário, movimentações, cautela de ferramentas e ordens de serviço para TI, Engenharia e Manutenção.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
