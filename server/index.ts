@@ -10,8 +10,8 @@ import { usersRouter } from './routes/users';
 dotenv.config();
 
 const app = express();
-// No CapRover a porta padrão costuma ser 80 ou injetada via PORT
-const PORT = process.env.PORT || 80;
+// No CapRover a porta padrão é 80; em desenvolvimento local é 5000
+const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? 80 : 5000);
 
 app.use(cors());
 app.use(express.json());
