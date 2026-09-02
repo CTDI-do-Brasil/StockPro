@@ -7,54 +7,8 @@ export const authRouter = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'chave_secreta_estoque_ti_eng_manut_2026';
 
-// Memória de fallback caso o banco Postgres não esteja ligado localmente
-const fallbackUsers: any[] = [
-  {
-    id: 'usr-admin-default',
-    name: 'Administrador Geral',
-    email: 'admin@empresa.com',
-    password_hash: bcrypt.hashSync('admin123', 10),
-    department: 'TI',
-    role: 'ADMIN',
-    badge: 'TI-001',
-    phone: '(11) 98765-4321',
-    avatar: '',
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    last_login: new Date().toISOString(),
-  },
-  {
-    id: 'usr-eng-default',
-    name: 'Engenheiro de Projetos',
-    email: 'engenharia@empresa.com',
-    password_hash: bcrypt.hashSync('eng123', 10),
-    department: 'ENGENHARIA',
-    role: 'GERENTE',
-    badge: 'ENG-102',
-    phone: '(11) 97654-3210',
-    avatar: '',
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    last_login: new Date().toISOString(),
-  },
-  {
-    id: 'usr-manut-default',
-    name: 'Técnico de Manutenção',
-    email: 'manutencao@empresa.com',
-    password_hash: bcrypt.hashSync('manut123', 10),
-    department: 'MANUTENCAO',
-    role: 'TECNICO',
-    badge: 'MAN-504',
-    phone: '(11) 96543-2109',
-    avatar: '',
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    last_login: new Date().toISOString(),
-  }
-];
+// Memória de fallback vazia
+const fallbackUsers: any[] = [];
 
 // Helper para gerar token JWT
 function generateToken(user: any) {

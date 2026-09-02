@@ -5,18 +5,12 @@ import {
   Lock, 
   Mail, 
   User, 
-  Building2, 
-  ShieldCheck, 
   Eye, 
   EyeOff, 
   Database, 
   CheckCircle2, 
   AlertCircle, 
   ArrowRight, 
-  Phone, 
-  Cpu, 
-  Wrench, 
-  Laptop,
   Sparkles
 } from 'lucide-react';
 
@@ -85,12 +79,6 @@ export const LoginView: React.FC = () => {
     if (!result.success) {
       setErrorMessage(result.error || 'Erro ao realizar cadastro.');
     }
-  };
-
-  const quickDemoLogin = (email: string, pass: string) => {
-    setLoginEmail(email);
-    setLoginPassword(pass);
-    setErrorMessage(null);
   };
 
   return (
@@ -220,44 +208,6 @@ export const LoginView: React.FC = () => {
                   </>
                 )}
               </button>
-
-              {/* Contas de Demonstração / Atalho Rápido */}
-              <div className="pt-3 border-t border-slate-800/80">
-                <span className="text-[11px] text-slate-400 font-medium block mb-2 text-center">
-                  Acesso rápido para testes:
-                </span>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => quickDemoLogin('admin@empresa.com', 'admin123')}
-                    className="p-2 bg-slate-950/80 hover:bg-slate-800 border border-slate-800 rounded-lg text-center transition-colors group cursor-pointer"
-                  >
-                    <Laptop className="w-3.5 h-3.5 text-blue-400 mx-auto mb-1 group-hover:scale-110 transition-transform" />
-                    <span className="block text-[10px] font-semibold text-slate-200">Admin TI</span>
-                    <span className="block text-[9px] text-slate-500 font-mono">admin123</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => quickDemoLogin('engenharia@empresa.com', 'eng123')}
-                    className="p-2 bg-slate-950/80 hover:bg-slate-800 border border-slate-800 rounded-lg text-center transition-colors group cursor-pointer"
-                  >
-                    <Cpu className="w-3.5 h-3.5 text-emerald-400 mx-auto mb-1 group-hover:scale-110 transition-transform" />
-                    <span className="block text-[10px] font-semibold text-slate-200">Engenharia</span>
-                    <span className="block text-[9px] text-slate-500 font-mono">eng123</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => quickDemoLogin('manutencao@empresa.com', 'manut123')}
-                    className="p-2 bg-slate-950/80 hover:bg-slate-800 border border-slate-800 rounded-lg text-center transition-colors group cursor-pointer"
-                  >
-                    <Wrench className="w-3.5 h-3.5 text-amber-400 mx-auto mb-1 group-hover:scale-110 transition-transform" />
-                    <span className="block text-[10px] font-semibold text-slate-200">Manutenção</span>
-                    <span className="block text-[9px] text-slate-500 font-mono">manut123</span>
-                  </button>
-                </div>
-              </div>
             </form>
           )}
 

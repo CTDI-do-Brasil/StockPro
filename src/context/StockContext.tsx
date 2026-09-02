@@ -107,13 +107,13 @@ interface StockContextType {
 const StockContext = createContext<StockContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  ITEMS: 'gestao_estoque_items_v2',
-  MOVEMENTS: 'gestao_estoque_movements_v2',
-  LOANS: 'gestao_estoque_loans_v2',
-  WORK_ORDERS: 'gestao_estoque_work_orders_v2',
-  SUPPLIERS: 'gestao_estoque_suppliers_v2',
-  LOCATIONS: 'gestao_estoque_locations_v2',
-  CATEGORIES: 'gestao_estoque_categories_v2',
+  ITEMS: 'gestao_estoque_items_v3_clean',
+  MOVEMENTS: 'gestao_estoque_movements_v3_clean',
+  LOANS: 'gestao_estoque_loans_v3_clean',
+  WORK_ORDERS: 'gestao_estoque_work_orders_v3_clean',
+  SUPPLIERS: 'gestao_estoque_suppliers_v3_clean',
+  LOCATIONS: 'gestao_estoque_locations_v3_clean',
+  CATEGORIES: 'gestao_estoque_categories_v3_clean',
 };
 
 export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) => {

@@ -33,49 +33,9 @@ usersRouter.get('/', authenticateToken, async (req: any, res: Response) => {
         source: 'PostgreSQL'
       });
     } else {
-      // Fallback
+      // Fallback vazio
       return res.json({
-        users: [
-          {
-            id: 'usr-admin-default',
-            name: 'Administrador Geral',
-            email: 'admin@empresa.com',
-            department: 'TI',
-            role: 'ADMIN',
-            badge: 'TI-001',
-            phone: '(11) 98765-4321',
-            avatar: '',
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-          },
-          {
-            id: 'usr-eng-default',
-            name: 'Engenheiro de Projetos',
-            email: 'engenharia@empresa.com',
-            department: 'ENGENHARIA',
-            role: 'GERENTE',
-            badge: 'ENG-102',
-            phone: '(11) 97654-3210',
-            avatar: '',
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-          },
-          {
-            id: 'usr-manut-default',
-            name: 'Técnico de Manutenção',
-            email: 'manutencao@empresa.com',
-            department: 'MANUTENCAO',
-            role: 'TECNICO',
-            badge: 'MAN-504',
-            phone: '(11) 96543-2109',
-            avatar: '',
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-          }
-        ],
+        users: [],
         source: 'Memória'
       });
     }
