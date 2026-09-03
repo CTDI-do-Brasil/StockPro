@@ -12,8 +12,6 @@ import {
   MapPin, 
   Camera, 
   FileSpreadsheet, 
-  HardDriveDownload, 
-  HardDriveUpload, 
   Plus, 
   LogOut,
   User as UserIcon,
@@ -45,9 +43,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenNewItem,
   onOpenQuickMove
 }) => {
-  const { stats, alerts, selectedDept, backupData, restoreData } = useStock();
+  const { stats, alerts, selectedDept } = useStock();
   const { user, logout, dbStatus } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
@@ -57,39 +54,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const totalAlerts = alerts.length;
-
-  const handleBackup = () => {
-    const jsonStr = backupData();
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `backup_estoque_ti_eng_manut_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleRestoreFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (content) {
-        if (window.confirm('Restaurar este backup substituirá os dados atuais do estoque. Deseja prosseguir?')) {
-          const success = restoreData(content);
-          if (success) {
-            alert('Banco de dados de estoque restaurado com sucesso!');
-          } else {
-            alert('Erro ao processar o arquivo de backup. Formato inválido.');
-          }
-        }
-      }
-    };
-    reader.readAsText(file);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
 
   const handleSelectNav = (tabId: string) => {
     onSelectTab(tabId);
@@ -287,30 +251,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span>Relatórios & Auditoria</span>
             </button>
 
-            {/* Backup & Restore */}
-            <div className="pt-1">
-              <button
-                onClick={handleBackup}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all cursor-pointer"
-              >
-                <HardDriveDownload className="w-4 h-4 text-slate-500" />
-                <span>Baixar Backup JSON</span>
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all cursor-pointer"
-              >
-                <HardDriveUpload className="w-4 h-4 text-slate-500" />
-                <span>Restaurar Backup</span>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleRestoreFile}
-                className="hidden"
-              />
-            </div>
+
           </div>
         </div>
 
