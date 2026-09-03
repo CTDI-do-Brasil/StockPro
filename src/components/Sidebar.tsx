@@ -10,7 +10,6 @@ import {
   ClipboardList, 
   Wrench, 
   MapPin, 
-  Camera, 
   FileSpreadsheet, 
   Plus, 
   LogOut,
@@ -29,7 +28,7 @@ import { UsersManagementModal } from './UsersManagementModal';
 interface SidebarProps {
   activeTab: string;
   onSelectTab: (tab: string) => void;
-  onOpenScanner: () => void;
+  onOpenScanner?: () => void;
   onOpenAuditReport: () => void;
   onOpenNewItem: () => void;
   onOpenQuickMove?: () => void;
@@ -38,7 +37,6 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
-  onOpenScanner,
   onOpenAuditReport,
   onOpenNewItem,
   onOpenQuickMove
@@ -227,17 +225,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span>Categorias</span>
             </button>
 
-            {/* Barcode Scanner */}
-            <button
-              onClick={() => {
-                onOpenScanner();
-                setIsMobileOpen(false);
-              }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all cursor-pointer"
-            >
-              <Camera className="w-4 h-4 text-slate-500" />
-              <span>Leitor Barcode & QR</span>
-            </button>
+
 
             {/* Reports */}
             <button
