@@ -68,15 +68,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Mobile Topbar */}
-      <header className="md:hidden sticky top-0 z-40 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-xs">
-            TI
-          </div>
-          <div>
-            <div className="text-sm font-bold text-slate-900 tracking-tight">TECH-INV</div>
-            <div className="text-[10px] text-slate-500 font-medium leading-none">Controle de Estoque</div>
-          </div>
+      <header className="md:hidden sticky top-0 z-40 bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shadow-xs">
+        <div 
+          onClick={() => handleSelectNav('dashboard')}
+          className="flex flex-col items-start cursor-pointer"
+        >
+          <img src="/logo.png" alt="CTDI" className="h-7 w-auto object-contain" />
+          <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Controle de estoque</span>
         </div>
 
         <button
@@ -104,30 +102,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Top: Brand Header */}
         <div>
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <div className="p-4 border-b border-slate-100 relative">
             <div 
               onClick={() => handleSelectNav('dashboard')}
-              className="flex items-center gap-3 cursor-pointer group"
+              className="flex flex-col items-center justify-center cursor-pointer group text-center py-2"
             >
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:bg-blue-700 transition-colors shrink-0">
-                <span className="text-white font-bold text-sm tracking-wider">TI</span>
-              </div>
-              <div>
-                <div className="text-base font-bold tracking-tight text-slate-900 flex items-center gap-1.5">
-                  <span>TECH-INV</span>
-                  <span className="text-[9px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded-full">
-                    v2.0
-                  </span>
-                </div>
-                <div className="text-[11px] text-slate-500 font-medium">
-                  Almoxarifado Integrado
-                </div>
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="CTDI" 
+                className="h-11 max-w-[190px] w-auto object-contain transition-transform group-hover:scale-105" 
+              />
+              <span className="text-xs font-semibold text-slate-600 tracking-wide mt-2">
+                Controle de estoque
+              </span>
             </div>
 
             <button
               onClick={() => setIsMobileOpen(false)}
-              className="md:hidden p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
+              className="md:hidden p-1.5 text-slate-400 hover:text-slate-600 rounded-lg absolute right-3 top-3"
             >
               <X className="w-5 h-5" />
             </button>

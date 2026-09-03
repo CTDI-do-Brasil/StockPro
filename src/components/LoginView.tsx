@@ -91,15 +91,12 @@ export const LoginView: React.FC = () => {
       <div className="w-full max-w-md z-10">
         
         {/* Cabeçalho da Marca */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl shadow-lg shadow-blue-500/20 mb-3 border border-blue-400/20">
-            <span className="text-white font-black text-xl tracking-wider">TI</span>
+        <div className="text-center mb-6 flex flex-col items-center justify-center">
+          <div className="bg-white p-3.5 rounded-2xl shadow-lg border border-slate-700/50 mb-3 max-w-[240px]">
+            <img src="/logo.png" alt="CTDI" className="h-11 w-auto object-contain mx-auto" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
-            TECH-INV
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-              v2.0
-            </span>
+          <h1 className="text-xl font-bold tracking-tight text-white">
+            Controle de estoque
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             Sistema Integrado de Almoxarifado • TI, Engenharia & Manutenção
