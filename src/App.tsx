@@ -135,12 +135,6 @@ const MainApp: React.FC = () => {
             />
           )}
 
-          {activeTab === 'cautelas' && (
-            <LoansView
-              onOpenNewLoan={handleOpenLoan}
-            />
-          )}
-
           {activeTab === 'ordens' && (
             <WorkOrdersView />
           )}

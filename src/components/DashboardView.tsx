@@ -8,7 +8,7 @@ interface DashboardViewProps {
   onOpenQuickMove: (item?: StockItem, type?: 'ENTRADA' | 'SAIDA') => void;
   onOpenScanner: () => void;
   onOpenNewItem: () => void;
-  onOpenNewLoan: () => void;
+  onOpenNewLoan?: () => void;
   onPrintLabel: (item: StockItem) => void;
 }
 
@@ -71,7 +71,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         
         {/* Total Stock Value */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
@@ -95,20 +95,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </p>
           <p className="text-slate-400 text-xs mt-2 italic">
             {stats.criticalStockCount > 0 ? `${stats.criticalStockCount} itens esgotados (ação imediata)` : 'Atenção aos pontos de pedido'}
-          </p>
-        </div>
-
-        {/* Active Loans / Cautela */}
-        <div 
-          onClick={() => onNavigateTab('cautelas')}
-          className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs hover:border-slate-300 cursor-pointer transition-all"
-        >
-          <p className="text-slate-500 text-xs uppercase tracking-wider font-semibold mb-1">Cautelas Ativas</p>
-          <p className="text-3xl font-bold text-blue-600">
-            {stats.activeLoansCount}
-          </p>
-          <p className="text-slate-400 text-xs mt-2">
-            Equipamentos & ferramentas em campo
           </p>
         </div>
 
@@ -176,7 +162,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
           ⚡ Ações Rápidas do Almoxarifado
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <button
             onClick={onOpenScanner}
             className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1.5 transition-all shadow-xs"
@@ -202,16 +188,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
 
           <button
-            onClick={onOpenNewLoan}
-            className="p-3 bg-blue-50/60 hover:bg-blue-100/70 text-blue-800 border border-blue-200/80 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1.5 transition-all shadow-xs"
-          >
-            <span className="text-xl">📋</span>
-            <span>Nova Cautela</span>
-          </button>
-
-          <button
             onClick={onOpenNewItem}
-            className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1.5 transition-all shadow-xs col-span-2 sm:col-span-1"
+            className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1.5 transition-all shadow-xs"
           >
             <span className="text-xl">＋</span>
             <span>Cadastrar Item</span>
