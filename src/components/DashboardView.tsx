@@ -6,8 +6,8 @@ import { BarcodeRenderer } from './BarcodeRenderer';
 interface DashboardViewProps {
   onNavigateTab: (tab: string) => void;
   onOpenQuickMove: (item?: StockItem, type?: 'ENTRADA' | 'SAIDA') => void;
-  onOpenScanner: () => void;
-  onOpenNewItem: () => void;
+  onOpenScanner?: () => void;
+  onOpenNewItem?: () => void;
   onOpenNewLoan?: () => void;
   onPrintLabel: (item: StockItem) => void;
 }
@@ -15,9 +15,6 @@ interface DashboardViewProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateTab,
   onOpenQuickMove,
-  onOpenScanner,
-  onOpenNewItem,
-  onOpenNewLoan,
   onPrintLabel
 }) => {
   const { items, movements, loans, workOrders, stats, selectedDept, setSelectedDept } = useStock();
@@ -157,45 +154,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         })}
       </div>
 
-      {/* Quick Action Center */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-        <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-          ⚡ Ações Rápidas do Almoxarifado
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <button
-            onClick={onOpenScanner}
-            className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1.5 transition-all shadow-xs"
-          >
-            <span className="text-xl">📷</span>
-            <span>Escanear Código / QR</span>
-          </button>
 
-          <button
-            onClick={() => onOpenQuickMove(undefined, 'ENTRADA')}
-            className="p-3 bg-emerald-50/60 hover:bg-emerald-100/70 text-emerald-800 border border-emerald-200/80 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1.5 transition-all shadow-xs"
-          >
-            <span className="text-xl">📥</span>
-            <span>Entrada de Peça</span>
-          </button>
-
-          <button
-            onClick={() => onOpenQuickMove(undefined, 'SAIDA')}
-            className="p-3 bg-rose-50/60 hover:bg-rose-100/70 text-rose-800 border border-rose-200/80 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1.5 transition-all shadow-xs"
-          >
-            <span className="text-xl">📤</span>
-            <span>Saída / Baixa</span>
-          </button>
-
-          <button
-            onClick={onOpenNewItem}
-            className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1.5 transition-all shadow-xs"
-          >
-            <span className="text-xl">＋</span>
-            <span>Cadastrar Item</span>
-          </button>
-        </div>
-      </div>
 
       {/* Two Columns: Critical Attention & Recent Movements */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
