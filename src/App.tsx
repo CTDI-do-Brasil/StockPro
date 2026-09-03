@@ -139,10 +139,6 @@ const MainApp: React.FC = () => {
             <WorkOrdersView />
           )}
 
-          {activeTab === 'locais' && (
-            <LocationsSuppliersView />
-          )}
-
         </main>
 
         {/* Footer */}
