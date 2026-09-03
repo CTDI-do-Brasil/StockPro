@@ -3,7 +3,7 @@ import { StockProvider, useStock } from './context/StockContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Department, StockItem } from './types';
 import { LoginView } from './components/LoginView';
-import { Navbar } from './components/Navbar';
+import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
 import { InventoryView } from './components/InventoryView';
 import { MovementsView } from './components/MovementsView';
@@ -92,10 +92,10 @@ const MainApp: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col md:flex-row font-sans selection:bg-blue-600 selection:text-white">
       
-      {/* Top Navbar */}
-      <Navbar
+      {/* Sidebar Lateral */}
+      <Sidebar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         onOpenScanner={() => setIsScannerOpen(true)}
@@ -103,64 +103,66 @@ const MainApp: React.FC = () => {
         onOpenNewItem={() => handleOpenNewItem()}
       />
 
-      {/* Main App Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        
-        {activeTab === 'dashboard' && (
-          <DashboardView
-            onNavigateTab={setActiveTab}
-            onOpenQuickMove={handleOpenQuickMove}
-            onOpenScanner={() => setIsScannerOpen(true)}
-            onOpenNewItem={() => handleOpenNewItem()}
-            onOpenNewLoan={() => handleOpenLoan()}
-            onPrintLabel={handlePrintLabel}
-          />
-        )}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              onNavigateTab={setActiveTab}
+              onOpenQuickMove={handleOpenQuickMove}
+              onOpenScanner={() => setIsScannerOpen(true)}
+              onOpenNewItem={() => handleOpenNewItem()}
+              onOpenNewLoan={() => handleOpenLoan()}
+              onPrintLabel={handlePrintLabel}
+            />
+          )}
 
-        {activeTab === 'inventario' && (
-          <InventoryView
-            onOpenNewItem={handleOpenNewItem}
-            onEditItem={handleEditItem}
-            onQuickMove={handleOpenQuickMove}
-            onPrintLabel={handlePrintLabel}
-            onOpenLoan={handleOpenLoan}
-            onOpenScanner={() => setIsScannerOpen(true)}
-          />
-        )}
+          {activeTab === 'inventario' && (
+            <InventoryView
+              onOpenNewItem={handleOpenNewItem}
+              onEditItem={handleEditItem}
+              onQuickMove={handleOpenQuickMove}
+              onPrintLabel={handlePrintLabel}
+              onOpenLoan={handleOpenLoan}
+              onOpenScanner={() => setIsScannerOpen(true)}
+            />
+          )}
 
-        {activeTab === 'movimentacoes' && (
-          <MovementsView
-            onOpenQuickMove={() => handleOpenQuickMove()}
-          />
-        )}
+          {activeTab === 'movimentacoes' && (
+            <MovementsView
+              onOpenQuickMove={() => handleOpenQuickMove()}
+            />
+          )}
 
-        {activeTab === 'cautelas' && (
-          <LoansView
-            onOpenNewLoan={handleOpenLoan}
-          />
-        )}
+          {activeTab === 'cautelas' && (
+            <LoansView
+              onOpenNewLoan={handleOpenLoan}
+            />
+          )}
 
-        {activeTab === 'ordens' && (
-          <WorkOrdersView />
-        )}
+          {activeTab === 'ordens' && (
+            <WorkOrdersView />
+          )}
 
-        {activeTab === 'locais' && (
-          <LocationsSuppliersView />
-        )}
+          {activeTab === 'locais' && (
+            <LocationsSuppliersView />
+          )}
 
-      </main>
+        </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>
-            Sistema de Almoxarifado Integrado • TI, Engenharia & Manutenção Industrial
-          </span>
-          <span className="font-mono text-[11px] text-slate-400">
-            {items.length} itens cadastrados • {dbStatus?.connected ? 'PostgreSQL Ativo' : 'Sessão Segura'}
-          </span>
-        </div>
-      </footer>
+        {/* Footer */}
+        <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
+          <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span>
+              Sistema de Almoxarifado Integrado • TI, Engenharia & Manutenção Industrial
+            </span>
+            <span className="font-mono text-[11px] text-slate-400">
+              {items.length} itens cadastrados • {dbStatus?.connected ? 'PostgreSQL Ativo' : 'Sessão Segura'}
+            </span>
+          </div>
+        </footer>
+      </div>
 
       {/* Modals & Dialogs */}
       <ItemModal
