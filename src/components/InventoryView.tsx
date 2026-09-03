@@ -627,12 +627,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         </span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between">
-                      <span>Fabricante:</span>
-                      <span className="text-slate-700 truncate max-w-[150px]">
-                        {item.manufacturer} {item.partNumber ? `(${item.partNumber})` : ''}
-                      </span>
-                    </div>
+                    {(item.manufacturer || item.partNumber) && (
+                      <div className="flex items-center justify-between">
+                        <span>Fabricante:</span>
+                        <span className="text-slate-700 truncate max-w-[150px]">
+                          {item.manufacturer} {item.partNumber ? `(${item.partNumber})` : ''}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span>Localização:</span>
                       <span className="text-slate-700 font-mono text-[11px]">

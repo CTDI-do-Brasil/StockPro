@@ -138,12 +138,6 @@ export const ItemModal: React.FC<ItemModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
-    if (!sku.trim()) {
-      setError('O código SKU é obrigatório.');
-      return;
-    }
     if (!name.trim()) {
       setError('O nome do item é obrigatório.');
       return;
@@ -159,9 +153,12 @@ export const ItemModal: React.FC<ItemModalProps> = ({
       .map(t => t.trim().toLowerCase())
       .filter(Boolean);
 
+    const finalSku = sku.trim() || itemToEdit?.sku || `${department === 'TI' ? 'TI' : department === 'ENGENHARIA' ? 'ENG' : 'MAN'}-ITEM-${Math.floor(1000 + Math.random() * 9000)}`;
+    const finalBarcode = barcode.trim() || itemToEdit?.barcode || `789${Date.now().toString().slice(-10)}`;
+
     const itemData = {
-      sku: sku.trim(),
-      barcode: barcode.trim() || sku.trim(),
+      sku: finalSku,
+      barcode: finalBarcode,
       name: name.trim(),
       department,
       category: category || deptCategories[0]?.name || 'Geral',
@@ -329,69 +326,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
               </div>
             </div>
 
-            {/* Manufacturer & Part Number */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Fabricante / Marca:
-                </label>
-                <input
-                  type="text"
-                  value={manufacturer}
-                  onChange={(e) => setManufacturer(e.target.value)}
-                  placeholder="Ex: Dell, Siemens, Fluke, SKF, Festo, HP..."
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
-                />
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Part Number (Código do Fabricante):
-                </label>
-                <input
-                  type="text"
-                  value={partNumber}
-                  onChange={(e) => setPartNumber(e.target.value)}
-                  placeholder="Ex: 6ES7214-1AG40-0XB0, 6205-2RSH..."
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Codes: SKU, Barcode */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-slate-700">SKU / Código Interno:</label>
-                  <button
-                    type="button"
-                    onClick={() => generateAutoCodes(department)}
-                    className="text-[10px] text-blue-600 hover:text-blue-700 font-semibold"
-                  >
-                    Gerar Novo
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={sku}
-                  onChange={(e) => setSku(e.target.value)}
-                  className="w-full bg-white border border-slate-200 text-slate-900 font-mono text-xs rounded-lg px-2.5 py-1.5 outline-hidden focus:border-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Código de Barras / EAN-13:
-                </label>
-                <input
-                  type="text"
-                  value={barcode}
-                  onChange={(e) => setBarcode(e.target.value)}
-                  className="w-full bg-white border border-slate-200 text-slate-900 font-mono text-xs rounded-lg px-2.5 py-1.5 outline-hidden focus:border-blue-500"
-                />
-              </div>
-            </div>
 
             {/* Quantities and Pricing */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
