@@ -18,7 +18,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
   itemToEdit = null,
   defaultDepartment = 'TI'
 }) => {
-  const { addItem, updateItem, suppliers, categories } = useStock();
+  const { addItem, updateItem, categories } = useStock();
 
   const [department, setDepartment] = useState<Department>(defaultDepartment);
   const [sku, setSku] = useState('');
@@ -32,13 +32,6 @@ export const ItemModal: React.FC<ItemModalProps> = ({
   const [maxQuantity, setMaxQuantity] = useState<number>(20);
   const [unit, setUnit] = useState<UnitType>('un');
   const [unitPrice, setUnitPrice] = useState<number>(0);
-  const [supplier, setSupplier] = useState('');
-  const [manufacturer, setManufacturer] = useState('');
-  const [partNumber, setPartNumber] = useState('');
-  const [isEquipment, setIsEquipment] = useState<boolean>(false);
-  const [serialNumbersText, setSerialNumbersText] = useState('');
-  const [tagsText, setTagsText] = useState('');
-  const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
@@ -65,13 +58,6 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setMaxQuantity(itemToEdit.maxQuantity);
         setUnit(itemToEdit.unit);
         setUnitPrice(itemToEdit.unitPrice);
-        setSupplier(itemToEdit.supplier);
-        setManufacturer(itemToEdit.manufacturer);
-        setPartNumber(itemToEdit.partNumber || '');
-        setIsEquipment(itemToEdit.isEquipment);
-        setSerialNumbersText(itemToEdit.serialNumbers ? itemToEdit.serialNumbers.join(', ') : '');
-        setTagsText(itemToEdit.tags ? itemToEdit.tags.join(', ') : '');
-        setNotes(itemToEdit.notes || '');
       } else {
         // New item defaults
         const dept: Department = (defaultDepartment === 'ENGENHARIA' || defaultDepartment === 'MANUTENCAO') 
@@ -92,13 +78,6 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setMaxQuantity(20);
         setUnit('un');
         setUnitPrice(0);
-        setSupplier(suppliers[0]?.name || 'Fornecedor Padrão');
-        setManufacturer('');
-        setPartNumber('');
-        setIsEquipment(false);
-        setSerialNumbersText('');
-        setTagsText('');
-        setNotes('');
         generateAutoCodes(dept);
       }
       setError(null);
@@ -143,16 +122,6 @@ export const ItemModal: React.FC<ItemModalProps> = ({
       return;
     }
 
-    const serials = serialNumbersText
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-
-    const tags = tagsText
-      .split(',')
-      .map(t => t.trim().toLowerCase())
-      .filter(Boolean);
-
     const finalSku = sku.trim() || itemToEdit?.sku || `${department === 'TI' ? 'TI' : department === 'ENGENHARIA' ? 'ENG' : 'MAN'}-ITEM-${Math.floor(1000 + Math.random() * 9000)}`;
     const finalBarcode = barcode.trim() || itemToEdit?.barcode || `789${Date.now().toString().slice(-10)}`;
 
@@ -174,13 +143,13 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         aisleRack: '',
         shelfBin: ''
       },
-      supplier: supplier.trim() || 'Fornecedor Não Especificado',
-      manufacturer: manufacturer.trim() || 'Genérico',
-      partNumber: partNumber.trim() || undefined,
-      isEquipment,
-      serialNumbers: serials.length > 0 ? serials : undefined,
-      tags,
-      notes: notes.trim() || undefined
+      supplier: itemToEdit?.supplier || '',
+      manufacturer: itemToEdit?.manufacturer || '',
+      partNumber: itemToEdit?.partNumber || undefined,
+      isEquipment: itemToEdit?.isEquipment || false,
+      serialNumbers: itemToEdit?.serialNumbers || undefined,
+      tags: itemToEdit?.tags || [],
+      notes: itemToEdit?.notes || undefined
     };
 
     if (itemToEdit) {
@@ -406,83 +375,6 @@ export const ItemModal: React.FC<ItemModalProps> = ({
               </div>
             </div>
 
-
-
-            {/* Equipment Check & Supplier */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Fornecedor Principal:
-                </label>
-                <input
-                  type="text"
-                  value={supplier}
-                  onChange={(e) => setSupplier(e.target.value)}
-                  placeholder="Ex: Dell, SKF, Siemens..."
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
-                />
-              </div>
-
-              <div className="flex flex-col justify-end">
-                <label className="flex items-center gap-2 p-2 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-slate-300 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={isEquipment}
-                    onChange={(e) => setIsEquipment(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded-sm border-slate-300"
-                  />
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 block">Equipamento Rastreável / Cautela</span>
-                    <span className="text-[10px] text-slate-500 block">Permite empréstimo com termo de cautela para técnicos</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {/* Serial numbers if equipment */}
-            {isEquipment && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Números de Série das Unidades (separados por vírgula):
-                </label>
-                <input
-                  type="text"
-                  value={serialNumbersText}
-                  onChange={(e) => setSerialNumbersText(e.target.value)}
-                  placeholder="Ex: BR-LAT-90412, BR-LAT-90413..."
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
-                />
-              </div>
-            )}
-
-            {/* Description, Tags, and Notes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tags para Busca Rápida (separadas por vírgula):
-                </label>
-                <input
-                  type="text"
-                  value={tagsText}
-                  onChange={(e) => setTagsText(e.target.value)}
-                  placeholder="Ex: sensor, pnp, automacao, 24v"
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Observações Técnicas / Aplicação:
-                </label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ex: Peça crítica para Linha 04. Manter reserva."
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
-                />
-              </div>
-            </div>
 
           </form>
 
