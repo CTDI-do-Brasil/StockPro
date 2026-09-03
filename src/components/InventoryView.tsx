@@ -458,8 +458,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
                       {/* Location */}
                       <td className="px-4 py-4 text-slate-500 font-mono text-xs">
-                        <span className="truncate max-w-[160px] block" title={`${item.location.warehouse} | ${item.location.aisleRack} » ${item.location.shelfBin}`}>
-                          {item.location.aisleRack} • {item.location.shelfBin}
+                        <span className="truncate max-w-[160px] block" title={item.location?.warehouse ? `${item.location.warehouse} | ${item.location.aisleRack} » ${item.location.shelfBin}` : ''}>
+                          {(item.location?.aisleRack || item.location?.shelfBin) ? `${item.location.aisleRack || ''} • ${item.location.shelfBin || ''}` : '-'}
                         </span>
                       </td>
 
@@ -636,7 +636,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     <div className="flex items-center justify-between">
                       <span>Localização:</span>
                       <span className="text-slate-700 font-mono text-[11px]">
-                        {item.location.aisleRack} • {item.location.shelfBin}
+                        {(item.location?.aisleRack || item.location?.shelfBin) ? `${item.location.aisleRack || ''} • ${item.location.shelfBin || ''}` : '-'}
                       </span>
                     </div>
                   </div>

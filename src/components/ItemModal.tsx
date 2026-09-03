@@ -18,7 +18,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
   itemToEdit = null,
   defaultDepartment = 'TI'
 }) => {
-  const { addItem, updateItem, suppliers, locations, categories } = useStock();
+  const { addItem, updateItem, suppliers, categories } = useStock();
 
   const [department, setDepartment] = useState<Department>(defaultDepartment);
   const [sku, setSku] = useState('');
@@ -32,9 +32,6 @@ export const ItemModal: React.FC<ItemModalProps> = ({
   const [maxQuantity, setMaxQuantity] = useState<number>(20);
   const [unit, setUnit] = useState<UnitType>('un');
   const [unitPrice, setUnitPrice] = useState<number>(0);
-  const [warehouse, setWarehouse] = useState('');
-  const [aisleRack, setAisleRack] = useState('');
-  const [shelfBin, setShelfBin] = useState('');
   const [supplier, setSupplier] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [partNumber, setPartNumber] = useState('');
@@ -68,9 +65,6 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setMaxQuantity(itemToEdit.maxQuantity);
         setUnit(itemToEdit.unit);
         setUnitPrice(itemToEdit.unitPrice);
-        setWarehouse(itemToEdit.location.warehouse);
-        setAisleRack(itemToEdit.location.aisleRack);
-        setShelfBin(itemToEdit.location.shelfBin);
         setSupplier(itemToEdit.supplier);
         setManufacturer(itemToEdit.manufacturer);
         setPartNumber(itemToEdit.partNumber || '');
@@ -98,9 +92,6 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setMaxQuantity(20);
         setUnit('un');
         setUnitPrice(0);
-        setWarehouse(locations[0]?.name || 'Almoxarifado Central');
-        setAisleRack('Corredor 01');
-        setShelfBin('Prateleira A - Gaveta 01');
         setSupplier(suppliers[0]?.name || 'Fornecedor Padrão');
         setManufacturer('');
         setPartNumber('');
@@ -181,10 +172,10 @@ export const ItemModal: React.FC<ItemModalProps> = ({
       maxQuantity: Number(maxQuantity) || 100,
       unit,
       unitPrice: Number(unitPrice) || 0,
-      location: {
-        warehouse: warehouse.trim() || 'Almoxarifado Central',
-        aisleRack: aisleRack.trim() || 'Rack 01',
-        shelfBin: shelfBin.trim() || 'Prateleira 01'
+      location: itemToEdit?.location || {
+        warehouse: '',
+        aisleRack: '',
+        shelfBin: ''
       },
       supplier: supplier.trim() || 'Fornecedor Não Especificado',
       manufacturer: manufacturer.trim() || 'Genérico',
@@ -480,50 +471,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
               </div>
             </div>
 
-            {/* Physical Location */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  📍 Almoxarifado:
-                </label>
-                <input
-                  type="text"
-                  value={warehouse}
-                  onChange={(e) => setWarehouse(e.target.value)}
-                  placeholder="Ex: Almoxarifado Central / Sala Servidores"
-                  className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-1.5 outline-hidden focus:border-blue-500"
-                  required
-                />
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Corredor / Rack / Estante:
-                </label>
-                <input
-                  type="text"
-                  value={aisleRack}
-                  onChange={(e) => setAisleRack(e.target.value)}
-                  placeholder="Ex: Rack 02 / Corredor Mecânica B"
-                  className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-1.5 outline-hidden focus:border-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Prateleira / Gaveta / Posição:
-                </label>
-                <input
-                  type="text"
-                  value={shelfBin}
-                  onChange={(e) => setShelfBin(e.target.value)}
-                  placeholder="Ex: Prateleira 3 - Gaveta 12"
-                  className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-1.5 outline-hidden focus:border-blue-500"
-                  required
-                />
-              </div>
-            </div>
 
             {/* Equipment Check & Supplier */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
