@@ -272,16 +272,68 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const updateItem = (id: string, itemData: Partial<StockItem>) => {
+    const now = new Date().toISOString();
+    const currentItem = items.find(i => i.id === id);
+
     setItems(prev => prev.map(item => {
       if (item.id === id) {
         return {
           ...item,
           ...itemData,
-          lastUpdated: new Date().toISOString()
+          lastUpdated: now
         };
       }
       return item;
     }));
+
+    // Sincronização inteligente de valores:
+    // Se o preço unitário ou dados cadastrais do item foram ajustados:
+    // 1) Pedidos anteriores/finalizados (RECEBIDO ou CANCELADO) MANTÊM seus valores históricos originais intactos.
+    // 2) Pedidos atuais em aberto (SOLICITADO, EM_COTACAO, COMPRADO) são atualizados para refletir o novo valor ajustado.
+    if (itemData.unitPrice !== undefined || itemData.name !== undefined) {
+      setRequests(prevRequests => prevRequests.map(req => {
+        // Pedidos finalizados ou cancelados não sofrem alterações retroativas
+        const isClosed = req.status === 'RECEBIDO' || req.status === 'CANCELADO' || (req.status as any) === 'CANCELADA';
+        if (isClosed) {
+          return req;
+        }
+
+        let hasMatchingItem = false;
+        const updatedItems = req.items.map(reqItem => {
+          const isMatch = reqItem.itemId === id || (currentItem?.sku && reqItem.sku === currentItem.sku);
+          if (isMatch) {
+            hasMatchingItem = true;
+            const newUnitPrice = itemData.unitPrice !== undefined ? Math.max(0, Number(itemData.unitPrice)) : (reqItem.estimatedUnitPrice || 0);
+            const newTotal = (reqItem.quantity || 0) * newUnitPrice;
+            return {
+              ...reqItem,
+              ...(itemData.name ? { itemName: itemData.name } : {}),
+              ...(itemData.unit ? { unit: itemData.unit } : {}),
+              estimatedUnitPrice: newUnitPrice,
+              totalEstimatedPrice: newTotal
+            };
+          }
+          return reqItem;
+        });
+
+        if (!hasMatchingItem) {
+          return req;
+        }
+
+        // Recalcula o total estimado do pedido em aberto
+        const newTotalEstimatedValue = updatedItems.reduce(
+          (acc, curr) => acc + (curr.totalEstimatedPrice || 0), 
+          0
+        );
+
+        return {
+          ...req,
+          items: updatedItems,
+          totalEstimatedValue: newTotalEstimatedValue,
+          updatedAt: now
+        };
+      }));
+    }
   };
 
   const updateItemMinQuantity = (itemId: string, newMin: number) => {
