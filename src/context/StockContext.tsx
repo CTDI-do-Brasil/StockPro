@@ -176,7 +176,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (Array.isArray(parsed)) {
           return parsed.map((r: any) => ({
             ...r,
-            status: r.status === 'CANCELADA' ? 'CANCELADO' : (r.status || 'SOLICITADO')
+            status: r.status === 'CANCELADA' ? 'CANCELADO' : r.status === 'PENDENTE' ? 'SOLICITADO' : (r.status || 'SOLICITADO')
           }));
         }
       } catch (e) { console.error(e); }
