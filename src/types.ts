@@ -70,6 +70,7 @@ export interface StockItem {
   createdAt: string;
   lastUpdated: string;
   notes?: string;
+  referenceLink?: string;
   specs?: Record<string, string>;
 }
 

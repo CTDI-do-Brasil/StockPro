@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStock } from '../context/StockContext';
 import { StockItem, Department, UnitType } from '../types';
+import { FolderTree, Plus, Tag, Link2, ExternalLink } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { FolderTree, Plus, Tag } from 'lucide-react';
 import { CategoriesModal } from './CategoriesModal';
 
 interface ItemModalProps {
@@ -33,6 +33,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
   const [suggestedPurchaseQty, setSuggestedPurchaseQty] = useState<number>(10);
   const [unit, setUnit] = useState<UnitType>('un');
   const [unitPrice, setUnitPrice] = useState<number>(0);
+  const [referenceLink, setReferenceLink] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
@@ -54,6 +55,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setCategory(itemToEdit.category);
         setSubcategory(itemToEdit.subcategory || '');
         setDescription(itemToEdit.description);
+        setReferenceLink(itemToEdit.referenceLink || '');
         setQuantity(itemToEdit.quantity);
         setMinQuantity(itemToEdit.minQuantity);
         setMaxQuantity(itemToEdit.maxQuantity);
@@ -81,6 +83,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setSuggestedPurchaseQty(10);
         setUnit('un');
         setUnitPrice(0);
+        setReferenceLink('');
         generateAutoCodes(dept);
       }
       setError(null);
@@ -136,6 +139,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
       category: category || deptCategories[0]?.name || 'Geral',
       subcategory: subcategory.trim() || undefined,
       description: description.trim(),
+      referenceLink: referenceLink.trim() || undefined,
       quantity: Number(quantity) || 0,
       minQuantity: Number(minQuantity) || 0,
       maxQuantity: Number(maxQuantity) || 100,
@@ -300,6 +304,35 @@ export const ItemModal: React.FC<ItemModalProps> = ({
             </div>
 
 
+
+            {/* Link de Referência / Compra */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5 text-blue-600" />
+                Link de Referência / Loja / Datasheet (URL opcional):
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={referenceLink}
+                  onChange={(e) => setReferenceLink(e.target.value)}
+                  placeholder="Ex: https://www.mercadolivre.com.br/... ou https://fornecedor.com.br/produto"
+                  className="flex-1 bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500 font-mono"
+                />
+                {referenceLink && (
+                  <a
+                    href={referenceLink.startsWith('http') ? referenceLink : `https://${referenceLink}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition-colors border border-blue-200 flex items-center gap-1.5 text-xs font-semibold shrink-0"
+                    title="Testar e abrir link em nova aba"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Testar Link</span>
+                  </a>
+                )}
+              </div>
+            </div>
 
             {/* Quantities and Pricing */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">

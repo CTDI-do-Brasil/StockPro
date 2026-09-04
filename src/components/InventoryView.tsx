@@ -19,7 +19,12 @@ import {
   FileText,
   Printer,
   Edit2,
-  Trash2
+  Trash2,
+  Link2,
+  ExternalLink,
+  Edit3,
+  Check,
+  X
 } from 'lucide-react';
 import { CategoriesModal } from './CategoriesModal';
 import { AlertsModal } from './AlertsModal';
@@ -41,7 +46,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   onOpenLoan,
   onOpenScanner
 }) => {
-  const { items, deleteItem, selectedDept, setSelectedDept, exportToCSV, categories, alerts } = useStock();
+  const { items, updateItem, deleteItem, selectedDept, setSelectedDept, exportToCSV, categories, alerts } = useStock();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('TODAS');
@@ -50,8 +55,41 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   const [selectedItemDetail, setSelectedItemDetail] = useState<StockItem | null>(null);
 
+  // Reference Link state
+  const [editingLinkItem, setEditingLinkItem] = useState<StockItem | null>(null);
+  const [linkInput, setLinkInput] = useState('');
+
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
+
+  const handleOpenLink = (url: string) => {
+    if (!url) return;
+    const formattedUrl = url.startsWith('http://') || url.startsWith('https://') 
+      ? url 
+      : `https://${url}`;
+    window.open(formattedUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleOpenEditLink = (item: StockItem) => {
+    setEditingLinkItem(item);
+    setLinkInput(item.referenceLink || '');
+  };
+
+  const handleSaveLink = () => {
+    if (!editingLinkItem) return;
+    const trimmed = linkInput.trim();
+    const finalUrl = trimmed ? (trimmed.startsWith('http://') || trimmed.startsWith('https://') ? trimmed : `https://${trimmed}`) : undefined;
+    updateItem(editingLinkItem.id, {
+      referenceLink: finalUrl
+    });
+
+    // If detail modal is open with this item, update its state too
+    if (selectedItemDetail && selectedItemDetail.id === editingLinkItem.id) {
+      setSelectedItemDetail(prev => prev ? { ...prev, referenceLink: finalUrl } : null);
+    }
+
+    setEditingLinkItem(null);
+  };
 
   // Available categories for the currently active department
   const availableCategories = useMemo(() => {
@@ -419,7 +457,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                           >
                             {item.name}
                           </button>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             {item.isEquipment && (
                               <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded-full font-medium">
                                 Cautela
@@ -427,6 +465,20 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                             )}
                             {item.partNumber && (
                               <span className="text-[11px] text-slate-400 font-mono">PN: {item.partNumber}</span>
+                            )}
+                            {item.referenceLink && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenLink(item.referenceLink!);
+                                }}
+                                className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 font-medium cursor-pointer bg-blue-50/60 px-1.5 py-0.2 rounded border border-blue-200/60"
+                                title={`Abrir no navegador: ${item.referenceLink}`}
+                              >
+                                <ExternalLink className="w-3 h-3 shrink-0" />
+                                <span>Link de Referência</span>
+                              </button>
                             )}
                           </div>
                         </div>
@@ -525,14 +577,46 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                           )}
                           <button
                             onClick={() => onPrintLabel(item)}
-                            className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg transition-colors"
+                            className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg transition-colors cursor-pointer"
                             title="Imprimir Etiqueta com Código de Barras e QR"
                           >
                             <Printer className="w-3.5 h-3.5" />
                           </button>
+
+                          {/* Link de Referência */}
+                          {item.referenceLink ? (
+                            <div className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50/70 p-0.5 shadow-2xs">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenLink(item.referenceLink!)}
+                                className="p-1 hover:bg-blue-100 text-blue-700 rounded-md transition-colors cursor-pointer"
+                                title={`Abrir link de referência no navegador: ${item.referenceLink}`}
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditLink(item)}
+                                className="p-1 hover:bg-blue-100 text-blue-500 hover:text-blue-800 rounded-md transition-colors cursor-pointer border-l border-blue-200"
+                                title="Editar Link de Referência"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditLink(item)}
+                              className="p-1.5 bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors cursor-pointer"
+                              title="Adicionar Link de Referência (URL do produto/datasheet/loja)"
+                            >
+                              <Link2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
                           <button
                             onClick={() => onEditItem(item)}
-                            className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg transition-colors"
+                            className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg transition-colors cursor-pointer"
                             title="Editar Item"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -677,14 +761,47 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     )}
                     <button
                       onClick={() => onPrintLabel(item)}
-                      className="p-1 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-xs"
+                      className="p-1 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-xs cursor-pointer"
                       title="Etiqueta"
                     >
                       🏷️
                     </button>
+
+                    {/* Link de Referência */}
+                    {item.referenceLink ? (
+                      <div className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50/70 p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenLink(item.referenceLink!)}
+                          className="px-1.5 py-0.5 hover:bg-blue-100 text-blue-700 rounded-md transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-semibold"
+                          title={`Abrir link: ${item.referenceLink}`}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Link</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditLink(item)}
+                          className="p-1 hover:bg-blue-100 text-blue-500 hover:text-blue-800 rounded-md transition-colors cursor-pointer border-l border-blue-200"
+                          title="Editar Link"
+                        >
+                          <Edit3 className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditLink(item)}
+                        className="p-1 bg-white hover:bg-blue-50 text-slate-400 hover:text-blue-600 border border-slate-200 rounded-lg text-xs cursor-pointer"
+                        title="Adicionar Link de Referência"
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
                     <button
                       onClick={() => onEditItem(item)}
-                      className="p-1 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-xs"
+                      className="p-1 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-xs cursor-pointer"
                       title="Editar"
                     >
                       ✏️
@@ -786,6 +903,46 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     <span className="text-slate-400 block">Fornecedor:</span>
                     <span className="font-semibold text-slate-900">{selectedItemDetail.supplier}</span>
                   </div>
+
+                  {/* Link de Referência */}
+                  <div className="col-span-2 bg-blue-50/50 p-2.5 rounded-lg border border-blue-100 flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-slate-500 block text-[11px] font-semibold">Link de Referência / Compra:</span>
+                      {selectedItemDetail.referenceLink ? (
+                        <a
+                          href={selectedItemDetail.referenceLink.startsWith('http') ? selectedItemDetail.referenceLink : `https://${selectedItemDetail.referenceLink}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-mono text-blue-600 hover:underline text-xs truncate block mt-0.5"
+                          title={selectedItemDetail.referenceLink}
+                        >
+                          {selectedItemDetail.referenceLink}
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 italic text-xs block mt-0.5">Nenhum link cadastrado</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {selectedItemDetail.referenceLink && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenLink(selectedItemDetail.referenceLink!)}
+                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Abrir</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditLink(selectedItemDetail)}
+                        className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>{selectedItemDetail.referenceLink ? 'Editar' : 'Adicionar Link'}</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {selectedItemDetail.description && (
@@ -875,6 +1032,97 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           onQuickMove(item, type);
         }}
       />
+
+      {/* Reference Link Edit Modal */}
+      {editingLinkItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                  <Link2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Link de Referência</h3>
+                  <p className="text-xs text-slate-500 truncate max-w-[260px]">{editingLinkItem.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingLinkItem(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600">
+                Insira ou edite a URL do produto (Mercado Livre, fornecedor, ficha técnica ou cotação).
+              </p>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">URL / Link de Referência:</label>
+                <div className="relative">
+                  <input
+                    type="url"
+                    value={linkInput}
+                    onChange={(e) => setLinkInput(e.target.value)}
+                    placeholder="https://exemplo.com.br/produto..."
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl px-3 py-2.5 outline-hidden focus:border-blue-500 font-mono pr-20"
+                    autoFocus
+                  />
+                  {linkInput.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenLink(linkInput)}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 text-[10px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Testar e abrir em nova aba"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span>Testar</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2">
+              {editingLinkItem.referenceLink && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateItem(editingLinkItem.id, { referenceLink: undefined });
+                    if (selectedItemDetail && selectedItemDetail.id === editingLinkItem.id) {
+                      setSelectedItemDetail(prev => prev ? { ...prev, referenceLink: undefined } : null);
+                    }
+                    setEditingLinkItem(null);
+                  }}
+                  className="text-xs text-rose-600 hover:text-rose-700 font-medium cursor-pointer"
+                >
+                  Remover link
+                </button>
+              )}
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setEditingLinkItem(null)}
+                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveLink}
+                  className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Salvar Link</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
