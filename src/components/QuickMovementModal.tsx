@@ -26,7 +26,6 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
   const [workOrderId, setWorkOrderId] = useState<string>('');
   const [costCenter, setCostCenter] = useState<string>('');
   const [responsibleUser, setResponsibleUser] = useState<string>('Operador Almoxarifado');
-  const [serialNumber, setSerialNumber] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
@@ -108,7 +107,6 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
       workOrderId: workOrderId.trim() || undefined,
       costCenter: costCenter.trim() || undefined,
       responsibleUser: responsibleUser.trim() || 'Almoxarifado',
-      serialNumber: serialNumber.trim() || undefined,
       notes: notes.trim() || undefined
     });
 
@@ -261,33 +259,19 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
             </div>
           )}
 
-          {/* Quantity & Serial Number */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Quantidade ({selectedItem?.unit || 'un'}):
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-bold text-base rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Nº de Série / Lote (Opcional):
-              </label>
-              <input
-                type="text"
-                value={serialNumber}
-                onChange={(e) => setSerialNumber(e.target.value)}
-                placeholder="Ex: SN-90412"
-                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500 font-mono"
-              />
-            </div>
+          {/* Quantity */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Quantidade ({selectedItem?.unit || 'un'}):
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-bold text-base rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
+              required
+            />
           </div>
 
           {/* Reason Field with Quick Tags */}

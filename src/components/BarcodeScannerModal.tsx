@@ -168,7 +168,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
           {/* Manual Input / Barcode Gun Input */}
           <div className="space-y-2">
             <label className="block text-xs font-semibold text-slate-700">
-              Digite ou Passe o Leitor Óptico (SKU, Código de Barras ou Nº de Série):
+              Digite ou Passe o Leitor Óptico (Código de Barras ou Código do Item):
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1">
