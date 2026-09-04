@@ -344,7 +344,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               <option value="AVAILABLE">Disponíveis (&gt; 0)</option>
               <option value="LOW">Estoque Baixo (≤ Mín)</option>
               <option value="CRITICAL">Estoque Crítico (Zerado)</option>
-              <option value="EQUIPMENT">Equipamentos / Cautela</option>
             </select>
 
             {/* Grid/Table Switch */}
@@ -501,11 +500,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                           </div>
 
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            {item.isEquipment && (
-                              <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded-full font-medium">
-                                Cautela
-                              </span>
-                            )}
                             {item.partNumber && (
                               <span className="text-[11px] text-slate-400 font-mono">PN: {item.partNumber}</span>
                             )}
@@ -595,15 +589,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                           >
                             <ArrowDownRight className="w-3.5 h-3.5" />
                           </button>
-                          {item.isEquipment && (
-                            <button
-                              onClick={() => onOpenLoan(item)}
-                              className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors border border-blue-200/60"
-                              title="Termo de Cautela / Empréstimo"
-                            >
-                              <FileText className="w-3.5 h-3.5" />
-                            </button>
-                          )}
 
                           <button
                             onClick={() => onEditItem(item)}
@@ -659,11 +644,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       }`}>
                         {item.department}
                       </span>
-                      {item.isEquipment && (
-                        <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded-full font-medium">
-                          Cautela
-                        </span>
-                      )}
                     </div>
 
                     <div className="text-right">
@@ -783,15 +763,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     >
                       - Saí
                     </button>
-                    {item.isEquipment && (
-                      <button
-                        onClick={() => onOpenLoan(item)}
-                        className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/60 rounded-lg text-xs font-medium transition-colors"
-                        title="Cautela"
-                      >
-                        📋
-                      </button>
-                    )}
 
                     <button
                       onClick={() => onEditItem(item)}

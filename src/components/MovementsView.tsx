@@ -204,8 +204,6 @@ export const MovementsView: React.FC<MovementsViewProps> = ({ onOpenQuickMove })
               { label: 'Entradas', value: 'ENTRADA' },
               { label: 'Saídas', value: 'SAIDA' },
               { label: 'Manutenção', value: 'BAIXA_MANUTENCAO' },
-              { label: 'Cautela Retirada', value: 'CAUTELA_RETIRADA' },
-              { label: 'Cautela Devolução', value: 'CAUTELA_DEVOLUCAO' },
               { label: 'Ajustes', value: 'AJUSTE' }
             ].map(t => (
               <button
