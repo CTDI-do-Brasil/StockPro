@@ -17,7 +17,8 @@ import {
   Package, 
   DollarSign, 
   SlidersHorizontal,
-  BellRing
+  BellRing,
+  Settings2
 } from 'lucide-react';
 
 interface AlertsModalProps {
@@ -31,7 +32,7 @@ export const AlertsModal: React.FC<AlertsModalProps> = ({
   onClose,
   onOpenQuickMove
 }) => {
-  const { alerts, items, updateItemMinQuantity, exportToCSV, selectedDept } = useStock();
+  const { alerts, items, updateItemMinQuantity, updateItemSuggestedQuantity, updateItem, exportToCSV, selectedDept } = useStock();
   const [filterDept, setFilterDept] = useState<Department | 'TODOS'>(selectedDept);
   const [filterSeverity, setFilterSeverity] = useState<'TODOS' | 'CRITICO' | 'BAIXO'>('TODOS');
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,6 +40,17 @@ export const AlertsModal: React.FC<AlertsModalProps> = ({
   // Inline editing of minQuantity
   const [editingMinItemId, setEditingMinItemId] = useState<string | null>(null);
   const [tempMinValue, setTempMinValue] = useState<number>(0);
+
+  // Inline editing of suggestedPurchaseQty
+  const [editingSuggestedItemId, setEditingSuggestedItemId] = useState<string | null>(null);
+  const [tempSuggestedValue, setTempSuggestedValue] = useState<number>(1);
+
+  // Full Configuration Modal for Item Replenishment Parameters
+  const [configItem, setConfigItem] = useState<StockAlert | null>(null);
+  const [configMin, setConfigMin] = useState<number>(0);
+  const [configSuggested, setConfigSuggested] = useState<number>(10);
+  const [configMax, setConfigMax] = useState<number>(20);
+  const [configPrice, setConfigPrice] = useState<number>(0);
 
   if (!isOpen) return null;
 
@@ -66,6 +78,38 @@ export const AlertsModal: React.FC<AlertsModalProps> = ({
   const handleSaveMin = (itemId: string) => {
     updateItemMinQuantity(itemId, tempMinValue);
     setEditingMinItemId(null);
+  };
+
+  const handleStartEditSuggested = (alert: StockAlert) => {
+    setEditingSuggestedItemId(alert.itemId);
+    setTempSuggestedValue(alert.suggestedPurchaseQty);
+  };
+
+  const handleSaveSuggested = (itemId: string) => {
+    updateItemSuggestedQuantity(itemId, tempSuggestedValue);
+    setEditingSuggestedItemId(null);
+  };
+
+  const handleOpenConfigModal = (alert: StockAlert) => {
+    const originalItem = items.find(i => i.id === alert.itemId);
+    setConfigItem(alert);
+    setConfigMin(alert.minQuantity);
+    setConfigSuggested(alert.suggestedPurchaseQty);
+    setConfigMax(alert.maxQuantity || (originalItem ? originalItem.maxQuantity : 20));
+    setConfigPrice(alert.unitPrice);
+  };
+
+  const handleSaveConfig = () => {
+    if (!configItem) return;
+
+    updateItem(configItem.itemId, {
+      minQuantity: Math.max(0, configMin),
+      suggestedPurchaseQty: Math.max(1, configSuggested),
+      maxQuantity: Math.max(configMin, configMax, configSuggested),
+      unitPrice: Math.max(0, configPrice)
+    });
+
+    setConfigItem(null);
   };
 
   const handleTriggerQuickReplenish = (alert: StockAlert) => {
@@ -348,21 +392,81 @@ export const AlertsModal: React.FC<AlertsModalProps> = ({
                     <div className="w-px h-8 bg-slate-200" />
 
                     <div>
-                      <span className="text-[10px] uppercase tracking-wider text-slate-400 block">Sugestão Compra</span>
-                      <span className="text-base font-bold text-blue-700">
-                        +{alert.suggestedPurchaseQty} <span className="text-xs font-normal text-slate-500">{alert.unit}</span>
-                      </span>
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <span className="text-[10px] uppercase tracking-wider text-slate-400 block">Sugestão Compra</span>
+                        {editingSuggestedItemId !== alert.itemId && (
+                          <button
+                            onClick={() => handleStartEditSuggested(alert)}
+                            className="text-slate-400 hover:text-blue-600 p-0.5 cursor-pointer"
+                            title="Ajustar sugestão de compra inline"
+                          >
+                            <Edit2 className="w-2.5 h-2.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {editingSuggestedItemId === alert.itemId ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="1"
+                            value={tempSuggestedValue}
+                            onChange={e => setTempSuggestedValue(Math.max(1, parseInt(e.target.value) || 1))}
+                            className="w-16 px-1.5 py-0.5 text-xs border border-blue-500 rounded focus:outline-hidden font-bold text-blue-700 bg-blue-50/50"
+                            autoFocus
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleSaveSuggested(alert.itemId);
+                              if (e.key === 'Escape') setEditingSuggestedItemId(null);
+                            }}
+                          />
+                          <button
+                            onClick={() => handleSaveSuggested(alert.itemId)}
+                            className="p-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 cursor-pointer"
+                            title="Salvar"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => setEditingSuggestedItemId(null)}
+                            className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                            title="Cancelar"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div 
+                          onClick={() => handleStartEditSuggested(alert)}
+                          className="group/sug cursor-pointer flex items-center gap-1"
+                          title="Clique para editar a sugestão de quantidade"
+                        >
+                          <span className="text-base font-bold text-blue-700 group-hover/sug:underline">
+                            +{alert.suggestedPurchaseQty} <span className="text-xs font-normal text-slate-500">{alert.unit}</span>
+                          </span>
+                          <Edit2 className="w-2.5 h-2.5 text-slate-300 opacity-0 group-hover/sug:opacity-100 transition-opacity text-blue-600" />
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Right: Quick Action Button */}
-                  <div className="flex flex-col sm:flex-row lg:flex-col gap-1.5 self-end lg:self-center min-w-[170px]">
+                  {/* Right: Quick Action Buttons */}
+                  <div className="flex flex-col gap-1.5 self-end lg:self-center min-w-[170px]">
                     <button
                       onClick={() => handleTriggerQuickReplenish(alert)}
-                      className="px-3 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+                      className="px-3 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                     >
                       <ArrowUpRight className="w-4 h-4" /> Registrar Entrada
                     </button>
+
+                    <button
+                      onClick={() => handleOpenConfigModal(alert)}
+                      className="px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 border border-slate-200 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      title="Abrir tela de ajuste de quantidade e estoque"
+                    >
+                      <Settings2 className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Ajustar Parâmetros</span>
+                    </button>
+
                     <span className="text-[10px] text-center text-slate-400">
                       Custo reposição: {(alert.suggestedPurchaseQty * alert.unitPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </span>
@@ -387,6 +491,155 @@ export const AlertsModal: React.FC<AlertsModalProps> = ({
         </div>
 
       </div>
+
+      {/* Modal Dedicado de Ajuste de Quantidades e Sugestão de Compra */}
+      {configItem && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                  <Settings2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Ajustar Sugestão & Níveis de Estoque
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-mono">
+                    {configItem.itemSku} • {configItem.department}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setConfigItem(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <div className="text-xs font-bold text-slate-900">{configItem.itemName}</div>
+                <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-3">
+                  <span>Estoque Atual: <strong className="text-rose-600 font-bold">{configItem.currentQuantity} {configItem.unit}</strong></span>
+                  <span>•</span>
+                  <span>Local: <strong>{configItem.location.warehouse}</strong></span>
+                </div>
+              </div>
+
+              {/* Sugestão de Compra / Reposição */}
+              <div className="bg-blue-50/60 p-3.5 rounded-xl border border-blue-200 space-y-2">
+                <label className="block text-xs font-bold text-blue-900">
+                  🎯 Sugestão de Quantidade para Compra: *
+                </label>
+                <p className="text-[11px] text-blue-700 leading-tight">
+                  Quantidade recomendada para comprar ou repor quando este item entrar em alerta.
+                </p>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="number"
+                    min="1"
+                    value={configSuggested}
+                    onChange={(e) => setConfigSuggested(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full bg-white border border-blue-300 text-blue-900 text-base font-black rounded-xl px-3 py-2 outline-hidden focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                    required
+                  />
+                  <span className="text-xs font-bold text-blue-800 shrink-0">
+                    {configItem.unit}
+                  </span>
+                </div>
+
+                {/* Quick increase buttons */}
+                <div className="flex items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-blue-600 font-medium mr-1">Atalhos:</span>
+                  {[5, 10, 20, 50, 100].map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setConfigSuggested(val)}
+                      className="px-2 py-0.5 text-[10px] font-bold bg-white text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors shadow-2xs"
+                    >
+                      +{val}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Estoque Mínimo & Estoque Máximo */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-amber-800 mb-1">
+                    Estoque Mínimo (Alerta):
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={configMin}
+                    onChange={(e) => setConfigMin(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full bg-amber-50/40 border border-amber-300 text-amber-900 text-xs font-bold rounded-xl px-3 py-2 outline-hidden focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Estoque Máximo (Teto):
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={configMax}
+                    onChange={(e) => setConfigMax(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Preço Unitário */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Preço Unitário Estimado (R$):
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={configPrice}
+                  onChange={(e) => setConfigPrice(Math.max(0, parseFloat(e.target.value) || 0))}
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
+                />
+              </div>
+
+              {/* Resumo financeiro calculado */}
+              <div className="p-3 bg-slate-100 rounded-xl flex items-center justify-between text-xs">
+                <span className="text-slate-600">Custo Estimado da Reposição:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm">
+                  {(configSuggested * configPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setConfigItem(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveConfig}
+                className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>Salvar Parâmetros</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

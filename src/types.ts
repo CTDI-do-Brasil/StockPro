@@ -56,6 +56,7 @@ export interface StockItem {
   quantity: number;
   minQuantity: number;
   maxQuantity: number;
+  suggestedPurchaseQty?: number;
   unit: UnitType;
   unitPrice: number;
   location: PhysicalLocation;

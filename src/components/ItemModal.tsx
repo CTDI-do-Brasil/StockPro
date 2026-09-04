@@ -27,9 +27,10 @@ export const ItemModal: React.FC<ItemModalProps> = ({
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
   const [description, setDescription] = useState('');
-  const [quantity, setQuantity] = useState<number>(1);
+  const [quantity, setQuantity] = useState<number>(0);
   const [minQuantity, setMinQuantity] = useState<number>(2);
   const [maxQuantity, setMaxQuantity] = useState<number>(20);
+  const [suggestedPurchaseQty, setSuggestedPurchaseQty] = useState<number>(10);
   const [unit, setUnit] = useState<UnitType>('un');
   const [unitPrice, setUnitPrice] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +57,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setQuantity(itemToEdit.quantity);
         setMinQuantity(itemToEdit.minQuantity);
         setMaxQuantity(itemToEdit.maxQuantity);
+        setSuggestedPurchaseQty(itemToEdit.suggestedPurchaseQty || Math.max(1, itemToEdit.maxQuantity - itemToEdit.quantity));
         setUnit(itemToEdit.unit);
         setUnitPrice(itemToEdit.unitPrice);
       } else {
@@ -76,6 +78,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setQuantity(1);
         setMinQuantity(2);
         setMaxQuantity(20);
+        setSuggestedPurchaseQty(10);
         setUnit('un');
         setUnitPrice(0);
         generateAutoCodes(dept);
@@ -136,6 +139,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
       quantity: Number(quantity) || 0,
       minQuantity: Number(minQuantity) || 0,
       maxQuantity: Number(maxQuantity) || 100,
+      suggestedPurchaseQty: Number(suggestedPurchaseQty) || 10,
       unit,
       unitPrice: Number(unitPrice) || 0,
       location: itemToEdit?.location || {
@@ -298,7 +302,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
 
 
             {/* Quantities and Pricing */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Qtd Atual:
@@ -324,6 +328,19 @@ export const ItemModal: React.FC<ItemModalProps> = ({
                   onChange={(e) => setMinQuantity(Math.max(0, parseInt(e.target.value) || 0))}
                   className="w-full bg-amber-50/50 border border-amber-300 text-amber-900 text-sm font-semibold rounded-xl px-3 py-2 outline-hidden focus:border-amber-500"
                   required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-blue-700 mb-1">
+                  Sugestão Compra:
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={suggestedPurchaseQty}
+                  onChange={(e) => setSuggestedPurchaseQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full bg-blue-50/50 border border-blue-300 text-blue-900 text-sm font-bold rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
                 />
               </div>
 

@@ -44,6 +44,7 @@ interface StockContextType {
   getItemById: (id: string) => StockItem | undefined;
   getItemByBarcodeOrSku: (query: string) => StockItem | undefined;
   updateItemMinQuantity: (itemId: string, newMin: number) => void;
+  updateItemSuggestedQuantity: (itemId: string, newSuggested: number) => void;
 
   // Categories & Subcategories Actions
   addCategory: (category: Omit<Category, 'id'>) => Category;
@@ -278,6 +279,16 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const updateItemMinQuantity = (itemId: string, newMin: number) => {
     const validMin = Math.max(0, newMin);
     updateItem(itemId, { minQuantity: validMin });
+  };
+
+  const updateItemSuggestedQuantity = (itemId: string, newSuggested: number) => {
+    const validSuggested = Math.max(1, newSuggested);
+    const item = items.find(i => i.id === itemId);
+    const newMax = item ? Math.max(item.maxQuantity, item.quantity + validSuggested) : validSuggested;
+    updateItem(itemId, { 
+      suggestedPurchaseQty: validSuggested,
+      maxQuantity: newMax
+    });
   };
 
   const deleteItem = (id: string) => {
@@ -726,7 +737,9 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     items.forEach(item => {
       if (item.quantity <= item.minQuantity) {
         const isCritical = item.quantity === 0;
-        const suggested = Math.max(item.maxQuantity - item.quantity, (item.minQuantity * 2) - item.quantity, 1);
+        const suggested = item.suggestedPurchaseQty !== undefined && item.suggestedPurchaseQty > 0
+          ? item.suggestedPurchaseQty
+          : Math.max(item.maxQuantity - item.quantity, (item.minQuantity * 2) - item.quantity, 1);
 
         result.push({
           id: `alert-${item.id}`,
@@ -975,6 +988,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       addItem,
       updateItem,
       updateItemMinQuantity,
+      updateItemSuggestedQuantity,
       deleteItem,
       getItemById,
       getItemByBarcodeOrSku,
