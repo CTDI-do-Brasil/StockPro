@@ -22,8 +22,6 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
   const [type, setType] = useState<MovementType>(initialType);
   const [quantity, setQuantity] = useState<number>(1);
   const [reason, setReason] = useState<string>('');
-  const [requester, setRequester] = useState<string>('');
-  const [workOrderId, setWorkOrderId] = useState<string>('');
   const [costCenter, setCostCenter] = useState<string>('');
   const [responsibleUser, setResponsibleUser] = useState<string>('Operador Almoxarifado');
   const [notes, setNotes] = useState<string>('');
@@ -39,8 +37,6 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
       setType(initialType);
       setQuantity(1);
       setReason('');
-      setRequester('');
-      setWorkOrderId('');
       setCostCenter('');
       setError(null);
     }
@@ -103,8 +99,7 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
       type,
       quantity,
       reason,
-      requester: requester.trim() || 'Não informado',
-      workOrderId: workOrderId.trim() || undefined,
+      requester: responsibleUser.trim() || 'Almoxarifado',
       costCenter: costCenter.trim() || undefined,
       responsibleUser: responsibleUser.trim() || 'Almoxarifado',
       notes: notes.trim() || undefined
@@ -302,35 +297,7 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
             </div>
           </div>
 
-          {/* Requisition Details: Requester, OS, Cost Center */}
           <div className="grid grid-cols-2 gap-3 pt-1">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Requisitante / Colaborador:
-              </label>
-              <input
-                type="text"
-                value={requester}
-                onChange={(e) => setRequester(e.target.value)}
-                placeholder="Ex: Eng. Rafael Costa (Matr. 3012)"
-                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ordem de Serviço (O.S.) / Chamado:
-              </label>
-              <input
-                type="text"
-                value={workOrderId}
-                onChange={(e) => setWorkOrderId(e.target.value)}
-                placeholder="Ex: OS-2026-089"
-                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500 font-mono"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Centro de Custo:
