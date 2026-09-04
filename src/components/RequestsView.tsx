@@ -22,7 +22,10 @@ import {
   ExternalLink,
   Building2,
   Receipt,
-  X
+  X,
+  Edit3,
+  SlidersHorizontal,
+  RotateCcw
 } from 'lucide-react';
 import { NewRequestModal } from './NewRequestModal';
 
@@ -41,6 +44,13 @@ export const RequestsView: React.FC = () => {
   const [invoiceInput, setInvoiceInput] = useState('');
   const [receiverInput, setReceiverInput] = useState(user?.name || '');
 
+  // Status edit modal state
+  const [editingStatusRequest, setEditingStatusRequest] = useState<StockRequest | null>(null);
+  const [targetStatus, setTargetStatus] = useState<RequestStatus>('SOLICITADO');
+  const [statusInvoiceInput, setStatusInvoiceInput] = useState('');
+  const [statusReceiverInput, setStatusReceiverInput] = useState('');
+  const [statusNotesInput, setStatusNotesInput] = useState('');
+
   // Metrics calculation
   const totalRequests = requests.length;
   const inQuotationCount = requests.filter(r => r.status === 'SOLICITADO' || r.status === 'EM_COTACAO').length;
@@ -48,7 +58,7 @@ export const RequestsView: React.FC = () => {
   const receivedCount = requests.filter(r => r.status === 'RECEBIDO').length;
 
   const totalOpenValue = requests
-    .filter(r => r.status !== 'RECEBIDO' && r.status !== 'CANCELADO')
+    .filter(r => r.status !== 'RECEBIDO' && r.status !== 'CANCELADO' && (r.status as any) !== 'CANCELADA')
     .reduce((acc, curr) => acc + (curr.totalEstimatedValue || 0), 0);
 
   // Filtered requests
@@ -106,6 +116,27 @@ export const RequestsView: React.FC = () => {
     );
 
     setReceivingRequest(null);
+  };
+
+  const handleOpenEditStatus = (req: StockRequest) => {
+    setEditingStatusRequest(req);
+    const normalized = (req.status as any) === 'CANCELADA' ? 'CANCELADO' : req.status;
+    setTargetStatus(normalized || 'SOLICITADO');
+    setStatusInvoiceInput(req.invoiceNumber || '');
+    setStatusReceiverInput(req.receivedBy || user?.name || '');
+    setStatusNotesInput(req.notes || '');
+  };
+
+  const handleSaveStatus = () => {
+    if (!editingStatusRequest) return;
+    updateRequestStatus(
+      editingStatusRequest.id,
+      targetStatus,
+      targetStatus === 'RECEBIDO' ? (statusReceiverInput.trim() || user?.name || 'Almoxarife') : editingStatusRequest.receivedBy,
+      targetStatus === 'RECEBIDO' ? (statusInvoiceInput.trim() || undefined) : editingStatusRequest.invoiceNumber,
+      statusNotesInput.trim() || undefined
+    );
+    setEditingStatusRequest(null);
   };
 
   const handlePrintRequest = (req: StockRequest) => {
@@ -417,7 +448,7 @@ export const RequestsView: React.FC = () => {
             const isCotacao = req.status === 'EM_COTACAO';
             const isComprado = req.status === 'COMPRADO';
             const isRecebido = req.status === 'RECEBIDO';
-            const isCancelado = req.status === 'CANCELADO';
+            const isCancelado = req.status === 'CANCELADO' || (req.status as any) === 'CANCELADA';
             const isEstoque = req.destination === 'REPOSICAO_ESTOQUE';
 
             return (
@@ -471,30 +502,42 @@ export const RequestsView: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Status Badge */}
+                  {/* Status Badge - Clickable to edit */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 ${
-                      isSolicitado
-                        ? 'bg-amber-100 text-amber-800'
-                        : isCotacao
-                        ? 'bg-purple-100 text-purple-800'
-                        : isComprado
-                        ? 'bg-blue-100 text-blue-800'
-                        : isRecebido
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditStatus(req)}
+                      className={`text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 transition-all cursor-pointer hover:shadow-xs hover:scale-102 border ${
+                        isSolicitado
+                          ? 'bg-amber-100 text-amber-800 border-amber-300'
+                          : isCotacao
+                          ? 'bg-purple-100 text-purple-800 border-purple-300'
+                          : isComprado
+                          ? 'bg-blue-100 text-blue-800 border-blue-300'
+                          : isRecebido
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                          : isCancelado
+                          ? 'bg-rose-100 text-rose-800 border-rose-300'
+                          : 'bg-slate-100 text-slate-700 border-slate-300'
+                      }`}
+                      title="Clique para editar o status desta compra"
+                    >
                       {isSolicitado && <Clock className="w-3.5 h-3.5 text-amber-600" />}
                       {isCotacao && <FileText className="w-3.5 h-3.5 text-purple-600" />}
                       {isComprado && <Truck className="w-3.5 h-3.5 text-blue-600" />}
                       {isRecebido && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
-                      {isCancelado && <XCircle className="w-3.5 h-3.5 text-slate-500" />}
-                      {req.status === 'SOLICITADO' && 'Solicitado'}
-                      {req.status === 'EM_COTACAO' && 'Em Cotação'}
-                      {req.status === 'COMPRADO' && 'Pedido Emitido'}
-                      {req.status === 'RECEBIDO' && 'Recebido / Entregue'}
-                      {req.status === 'CANCELADO' && 'Cancelado'}
-                    </span>
+                      {isCancelado && <XCircle className="w-3.5 h-3.5 text-rose-600" />}
+                      {!isSolicitado && !isCotacao && !isComprado && !isRecebido && !isCancelado && <Clock className="w-3.5 h-3.5 text-slate-500" />}
+                      <span>
+                        {isSolicitado && 'Solicitado'}
+                        {isCotacao && 'Em Cotação'}
+                        {isComprado && 'Pedido Emitido'}
+                        {isRecebido && 'Recebido / Entregue'}
+                        {isCancelado && 'Cancelado'}
+                        {!isSolicitado && !isCotacao && !isComprado && !isRecebido && !isCancelado && (req.status || 'Solicitado')}
+                      </span>
+                      <Edit3 className="w-3 h-3 opacity-60 ml-0.5" />
+                    </button>
                   </div>
                 </div>
 
@@ -619,7 +662,7 @@ export const RequestsView: React.FC = () => {
 
                 {/* Action Buttons Row */}
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2 flex-wrap">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <button
                       onClick={() => handlePrintRequest(req)}
                       className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -629,6 +672,15 @@ export const RequestsView: React.FC = () => {
                       <span>Imprimir</span>
                     </button>
 
+                    <button
+                      onClick={() => handleOpenEditStatus(req)}
+                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-blue-200 shadow-2xs"
+                      title="Alterar o status desta solicitação"
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      <span>Alterar Status</span>
+                    </button>
+
                     {(user?.role === 'ADMIN' || user?.role === 'GERENTE') && (
                       <button
                         onClick={() => {
@@ -636,7 +688,7 @@ export const RequestsView: React.FC = () => {
                             deleteRequest(req.id);
                           }
                         }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
                         title="Excluir solicitação"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -645,12 +697,12 @@ export const RequestsView: React.FC = () => {
                   </div>
 
                   {/* Status transitions */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {isSolicitado && (
                       <>
                         <button
-                          onClick={() => updateRequestStatus(req.id, 'CANCELADA')}
-                          className="px-3 py-1.5 text-slate-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl text-xs font-medium transition-colors"
+                          onClick={() => updateRequestStatus(req.id, 'CANCELADO')}
+                          className="px-3 py-1.5 text-slate-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl text-xs font-medium transition-colors cursor-pointer"
                         >
                           Cancelar
                         </button>
@@ -674,8 +726,8 @@ export const RequestsView: React.FC = () => {
                     {isCotacao && (
                       <>
                         <button
-                          onClick={() => updateRequestStatus(req.id, 'CANCELADA')}
-                          className="px-3 py-1.5 text-slate-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl text-xs font-medium transition-colors"
+                          onClick={() => updateRequestStatus(req.id, 'CANCELADO')}
+                          className="px-3 py-1.5 text-slate-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl text-xs font-medium transition-colors cursor-pointer"
                         >
                           Cancelar
                         </button>
@@ -696,6 +748,16 @@ export const RequestsView: React.FC = () => {
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>Registrar Recebimento {isEstoque && '(Entrada no Estoque)'}</span>
+                      </button>
+                    )}
+
+                    {isCancelado && (
+                      <button
+                        onClick={() => updateRequestStatus(req.id, 'SOLICITADO')}
+                        className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Reabrir Solicitação</span>
                       </button>
                     )}
                   </div>
@@ -795,6 +857,271 @@ export const RequestsView: React.FC = () => {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Edit Status Modal */}
+      {editingStatusRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                  <SlidersHorizontal className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Alterar Status da Solicitação
+                  </h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    #{editingStatusRequest.code} • {editingStatusRequest.requester}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingStatusRequest(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Status Options Radio Cards */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Selecione o Novo Status:
+              </label>
+
+              <div className="grid grid-cols-1 gap-2">
+                {/* SOLICITADO */}
+                <label 
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                    targetStatus === 'SOLICITADO'
+                      ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-400/40'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="radio" 
+                      name="requestStatus" 
+                      value="SOLICITADO"
+                      checked={targetStatus === 'SOLICITADO'}
+                      onChange={() => setTargetStatus('SOLICITADO')}
+                      className="text-amber-600 focus:ring-amber-500 cursor-pointer"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">Solicitado</span>
+                        <span className="text-[11px] text-slate-500">Aberto / Aguardando início das cotações</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                    Fase 1
+                  </span>
+                </label>
+
+                {/* EM_COTACAO */}
+                <label 
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                    targetStatus === 'EM_COTACAO'
+                      ? 'bg-purple-50/80 border-purple-300 ring-2 ring-purple-400/40'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="radio" 
+                      name="requestStatus" 
+                      value="EM_COTACAO"
+                      checked={targetStatus === 'EM_COTACAO'}
+                      onChange={() => setTargetStatus('EM_COTACAO')}
+                      className="text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-purple-600" />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">Em Cotação</span>
+                        <span className="text-[11px] text-slate-500">Pesquisando fornecedores e propostas comerciais</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                    Fase 2
+                  </span>
+                </label>
+
+                {/* COMPRADO */}
+                <label 
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                    targetStatus === 'COMPRADO'
+                      ? 'bg-blue-50/80 border-blue-300 ring-2 ring-blue-400/40'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="radio" 
+                      name="requestStatus" 
+                      value="COMPRADO"
+                      checked={targetStatus === 'COMPRADO'}
+                      onChange={() => setTargetStatus('COMPRADO')}
+                      className="text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-blue-600" />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">Pedido Emitido (Comprado)</span>
+                        <span className="text-[11px] text-slate-500">Pedido fechado / Aguardando entrega pelo fornecedor</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                    Fase 3
+                  </span>
+                </label>
+
+                {/* RECEBIDO */}
+                <label 
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                    targetStatus === 'RECEBIDO'
+                      ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-400/40'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="radio" 
+                      name="requestStatus" 
+                      value="RECEBIDO"
+                      checked={targetStatus === 'RECEBIDO'}
+                      onChange={() => setTargetStatus('RECEBIDO')}
+                      className="text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">Recebido / Entregue</span>
+                        <span className="text-[11px] text-slate-500">Mercadoria recebida e conferida com sucesso</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    Fase 4
+                  </span>
+                </label>
+
+                {/* CANCELADO */}
+                <label 
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                    targetStatus === 'CANCELADO'
+                      ? 'bg-rose-50/80 border-rose-300 ring-2 ring-rose-400/40'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="radio" 
+                      name="requestStatus" 
+                      value="CANCELADO"
+                      checked={targetStatus === 'CANCELADO'}
+                      onChange={() => setTargetStatus('CANCELADO')}
+                      className="text-rose-600 focus:ring-rose-500 cursor-pointer"
+                    />
+                    <div className="flex items-center gap-2">
+                      <XCircle className="w-4 h-4 text-rose-600" />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">Cancelado</span>
+                        <span className="text-[11px] text-slate-500">Solicitação cancelada ou recusada</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                    Encerrada
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Extra inputs if RECEBIDO */}
+            {targetStatus === 'RECEBIDO' && (
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-in fade-in duration-150">
+                <div className="text-xs text-slate-600">
+                  {editingStatusRequest.destination === 'REPOSICAO_ESTOQUE' ? (
+                    <span className="text-emerald-700 font-medium">
+                      📦 <strong>Reposição de Estoque:</strong> As peças entrarão automaticamente no inventário e gerarão registro de movimentação de ENTRADA.
+                    </span>
+                  ) : (
+                    <span className="text-blue-700 font-medium">
+                      ⚡ <strong>Uso Imediato:</strong> Mercadoria entregue diretamente ao solicitante ({editingStatusRequest.requester}).
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Nota Fiscal (NF):
+                    </label>
+                    <input
+                      type="text"
+                      value={statusInvoiceInput}
+                      onChange={(e) => setStatusInvoiceInput(e.target.value)}
+                      placeholder="Ex: NF-e 124580"
+                      className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-1.5 outline-hidden focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Conferido / Recebido por:
+                    </label>
+                    <input
+                      type="text"
+                      value={statusReceiverInput}
+                      onChange={(e) => setStatusReceiverInput(e.target.value)}
+                      placeholder="Nome do conferente"
+                      className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-1.5 outline-hidden focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Notes / Justification input */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Observações / Justificativa da Alteração:
+              </label>
+              <textarea
+                value={statusNotesInput}
+                onChange={(e) => setStatusNotesInput(e.target.value)}
+                placeholder="Ex: Cotação aprovada com fornecedor X / Reaberto para novos orçamentos..."
+                rows={2}
+                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl p-2.5 outline-hidden focus:border-blue-500 focus:bg-white resize-none"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setEditingStatusRequest(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveStatus}
+                className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Confirmar Status</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

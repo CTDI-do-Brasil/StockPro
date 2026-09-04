@@ -171,7 +171,15 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [requests, setRequests] = useState<StockRequest[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.REQUESTS);
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((r: any) => ({
+            ...r,
+            status: r.status === 'CANCELADA' ? 'CANCELADO' : (r.status || 'SOLICITADO')
+          }));
+        }
+      } catch (e) { console.error(e); }
     }
     return [];
   });
@@ -594,18 +602,19 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const updateRequestStatus = (
     id: string, 
-    status: RequestStatus, 
+    status: RequestStatus | 'CANCELADA', 
     responsibleUser?: string, 
     invoiceNumber?: string,
     notes?: string
   ) => {
+    const canonicalStatus: RequestStatus = (status as any) === 'CANCELADA' ? 'CANCELADO' : (status as RequestStatus);
     const now = new Date().toISOString();
 
     setRequests(prev => prev.map(req => {
       if (req.id !== id) return req;
 
       // Se a compra for marcada como RECEBIDO e ainda não tiver sido recebida:
-      if (status === 'RECEBIDO' && req.status !== 'RECEBIDO') {
+      if (canonicalStatus === 'RECEBIDO' && req.status !== 'RECEBIDO') {
         // Se a finalidade for REPOSIÇÃO DE ESTOQUE, dá ENTRADA AUTOMÁTICA no saldo do estoque
         if (req.destination === 'REPOSICAO_ESTOQUE') {
           req.items.forEach(reqItem => {
@@ -692,10 +701,10 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       return {
         ...req,
-        status,
-        purchasedAt: status === 'COMPRADO' ? now : req.purchasedAt,
-        receivedAt: status === 'RECEBIDO' ? now : req.receivedAt,
-        receivedBy: status === 'RECEBIDO' ? (responsibleUser || 'Almoxarife') : req.receivedBy,
+        status: canonicalStatus,
+        purchasedAt: canonicalStatus === 'COMPRADO' ? now : req.purchasedAt,
+        receivedAt: canonicalStatus === 'RECEBIDO' ? now : req.receivedAt,
+        receivedBy: canonicalStatus === 'RECEBIDO' ? (responsibleUser || 'Almoxarife') : req.receivedBy,
         invoiceNumber: invoiceNumber !== undefined ? invoiceNumber : req.invoiceNumber,
         notes: notes !== undefined ? notes : req.notes,
         updatedAt: now
