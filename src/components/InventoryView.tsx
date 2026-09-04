@@ -17,7 +17,6 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   FileText,
-  Printer,
   Edit2,
   Trash2,
   Link2,
@@ -605,14 +604,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                               <FileText className="w-3.5 h-3.5" />
                             </button>
                           )}
-                          <button
-                            onClick={() => onPrintLabel(item)}
-                            className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                            title="Imprimir Etiqueta com Código de Barras e QR"
-                          >
-                            <Printer className="w-3.5 h-3.5" />
-                          </button>
-
 
                           <button
                             onClick={() => onEditItem(item)}
@@ -801,14 +792,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         📋
                       </button>
                     )}
-                    <button
-                      onClick={() => onPrintLabel(item)}
-                      className="p-1 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-xs cursor-pointer"
-                      title="Etiqueta"
-                    >
-                      🏷️
-                    </button>
-
 
                     <button
                       onClick={() => onEditItem(item)}
