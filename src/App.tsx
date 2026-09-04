@@ -9,7 +9,6 @@ import { InventoryView } from './components/InventoryView';
 import { MovementsView } from './components/MovementsView';
 import { RequestsView } from './components/RequestsView';
 import { LoansView } from './components/LoansView';
-import { WorkOrdersView } from './components/WorkOrdersView';
 import { LocationsSuppliersView } from './components/LocationsSuppliersView';
 import { ItemModal } from './components/ItemModal';
 import { QuickMovementModal } from './components/QuickMovementModal';
@@ -138,10 +137,6 @@ const MainApp: React.FC = () => {
 
           {activeTab === 'solicitacoes' && (
             <RequestsView />
-          )}
-
-          {activeTab === 'ordens' && (
-            <WorkOrdersView />
           )}
 
         </main>

@@ -17,7 +17,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenQuickMove,
   onPrintLabel
 }) => {
-  const { items, movements, loans, workOrders, stats, selectedDept, setSelectedDept } = useStock();
+  const { items, movements, loans, stats, selectedDept, setSelectedDept } = useStock();
 
   // Filtered items based on selectedDept
   const filteredItems = selectedDept === 'TODOS' 
@@ -95,17 +95,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </p>
         </div>
 
-        {/* Open Work Orders (OS) */}
+        {/* Solicitacoes de Compra */}
         <div 
-          onClick={() => onNavigateTab('ordens')}
+          onClick={() => onNavigateTab('solicitacoes')}
           className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs hover:border-slate-300 cursor-pointer transition-all"
         >
-          <p className="text-slate-500 text-xs uppercase tracking-wider font-semibold mb-1">O.S. Abertas</p>
+          <p className="text-slate-500 text-xs uppercase tracking-wider font-semibold mb-1">Solicitações de Compra</p>
           <p className="text-3xl font-bold text-amber-500">
-            {stats.openWorkOrdersCount}
+            {stats.pendingRequestsCount}
           </p>
           <p className="text-slate-400 text-xs mt-2">
-            Manutenção & requisições pendentes
+            {stats.pendingRequestsCount > 0 ? `${stats.pendingRequestsCount} pendente(s) de atendimento` : 'Nenhuma solicitação pendente'}
           </p>
         </div>
 
