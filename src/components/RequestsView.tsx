@@ -1,23 +1,28 @@
 import React, { useState, useMemo } from 'react';
 import { useStock } from '../context/StockContext';
 import { useAuth } from '../context/AuthContext';
-import { Department, RequestStatus, RequestPriority, StockRequest } from '../types';
+import { Department, RequestStatus, RequestPriority, PurchaseDestination, StockRequest } from '../types';
 import { 
   ClipboardList, 
   Plus, 
   Search, 
-  Filter, 
   Clock, 
   CheckCircle2, 
   XCircle, 
   Package, 
   User as UserIcon, 
   Calendar, 
-  AlertTriangle,
-  ArrowRight,
-  Printer,
-  Trash2,
-  Boxes
+  Printer, 
+  Trash2, 
+  Zap, 
+  DollarSign, 
+  ShoppingCart, 
+  Truck, 
+  FileText, 
+  ExternalLink,
+  Building2,
+  Receipt,
+  X
 } from 'lucide-react';
 import { NewRequestModal } from './NewRequestModal';
 
@@ -27,20 +32,34 @@ export const RequestsView: React.FC = () => {
 
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [destinationFilter, setDestinationFilter] = useState<PurchaseDestination | 'TODOS'>('TODOS');
   const [statusFilter, setStatusFilter] = useState<RequestStatus | 'TODOS'>('TODOS');
   const [priorityFilter, setPriorityFilter] = useState<RequestPriority | 'TODAS'>('TODAS');
 
-  // Stats calculation
+  // Receive modal state
+  const [receivingRequest, setReceivingRequest] = useState<StockRequest | null>(null);
+  const [invoiceInput, setInvoiceInput] = useState('');
+  const [receiverInput, setReceiverInput] = useState(user?.name || '');
+
+  // Metrics calculation
   const totalRequests = requests.length;
-  const pendingCount = requests.filter(r => r.status === 'PENDENTE').length;
-  const inProgressCount = requests.filter(r => r.status === 'EM_SEPARACAO').length;
-  const fulfilledCount = requests.filter(r => r.status === 'ATENDIDA').length;
+  const inQuotationCount = requests.filter(r => r.status === 'SOLICITADO' || r.status === 'EM_COTACAO').length;
+  const purchasedCount = requests.filter(r => r.status === 'COMPRADO').length;
+  const receivedCount = requests.filter(r => r.status === 'RECEBIDO').length;
+
+  const totalOpenValue = requests
+    .filter(r => r.status !== 'RECEBIDO' && r.status !== 'CANCELADO')
+    .reduce((acc, curr) => acc + (curr.totalEstimatedValue || 0), 0);
 
   // Filtered requests
   const filteredRequests = useMemo(() => {
     return requests.filter(req => {
       // Dept filter
       if (selectedDept !== 'TODOS' && req.department !== selectedDept) {
+        return false;
+      }
+      // Destination filter
+      if (destinationFilter !== 'TODOS' && req.destination !== destinationFilter) {
         return false;
       }
       // Status filter
@@ -57,23 +76,53 @@ export const RequestsView: React.FC = () => {
         const matchesCode = req.code.toLowerCase().includes(term);
         const matchesRequester = req.requester.toLowerCase().includes(term);
         const matchesReason = req.reason.toLowerCase().includes(term);
-        const matchesItem = req.items.some(i => i.itemName.toLowerCase().includes(term) || i.sku.toLowerCase().includes(term));
-        return matchesCode || matchesRequester || matchesReason || matchesItem;
+        const matchesInvoice = (req.invoiceNumber || '').toLowerCase().includes(term);
+        const matchesItem = req.items.some(i => 
+          i.itemName.toLowerCase().includes(term) || 
+          (i.sku || '').toLowerCase().includes(term) ||
+          (i.supplierSuggested || '').toLowerCase().includes(term)
+        );
+        return matchesCode || matchesRequester || matchesReason || matchesInvoice || matchesItem;
       }
 
       return true;
     });
-  }, [requests, selectedDept, statusFilter, priorityFilter, searchTerm]);
+  }, [requests, selectedDept, destinationFilter, statusFilter, priorityFilter, searchTerm]);
 
-  const handlePrintReceipt = (req: StockRequest) => {
+  const handleOpenReceiveModal = (req: StockRequest) => {
+    setReceivingRequest(req);
+    setInvoiceInput('');
+    setReceiverInput(user?.name || '');
+  };
+
+  const handleConfirmReceive = () => {
+    if (!receivingRequest) return;
+
+    updateRequestStatus(
+      receivingRequest.id,
+      'RECEBIDO',
+      receiverInput.trim() || user?.name || 'Almoxarife',
+      invoiceInput.trim() || undefined
+    );
+
+    setReceivingRequest(null);
+  };
+
+  const handlePrintRequest = (req: StockRequest) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const itemsHtml = req.items.map(item => `
+    const itemsRows = req.items.map(item => `
       <tr>
-        <td style="padding: 8px; border: 1px solid #e2e8f0; font-family: monospace;">${item.sku}</td>
-        <td style="padding: 8px; border: 1px solid #e2e8f0;">${item.itemName}</td>
-        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold;">${item.quantity} ${item.unit}</td>
+        <td style="padding: 8px; border: 1px solid #cbd5e1; font-family: monospace;">${item.sku || 'NOVO'}</td>
+        <td style="padding: 8px; border: 1px solid #cbd5e1;">
+          <strong>${item.itemName}</strong>
+          ${item.supplierSuggested ? `<div style="font-size: 11px; color: #64748b;">Fornecedor: ${item.supplierSuggested}</div>` : ''}
+          ${item.linkOrReference ? `<div style="font-size: 11px; color: #0284c7;">Ref: ${item.linkOrReference}</div>` : ''}
+        </td>
+        <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">${item.quantity} ${item.unit}</td>
+        <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">R$ ${(item.estimatedUnitPrice || 0).toFixed(2)}</td>
+        <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold;">R$ ${(item.totalEstimatedPrice || 0).toFixed(2)}</td>
       </tr>
     `).join('');
 
@@ -81,58 +130,78 @@ export const RequestsView: React.FC = () => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Comprovante de Solicitação - ${req.code}</title>
+          <title>Solicitação de Compra - ${req.code}</title>
           <style>
-            body { font-family: sans-serif; padding: 30px; color: #1e293b; }
+            body { font-family: sans-serif; padding: 30px; color: #0f172a; font-size: 13px; }
             .header { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #0f172a; padding-bottom: 15px; }
-            .badge { display: inline-block; padding: 4px 10px; background: #e0f2fe; color: #0369a1; border-radius: 6px; font-weight: bold; font-size: 12px; }
             table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-            th { background: #f8fafc; padding: 8px; border: 1px solid #cbd5e1; text-align: left; font-size: 13px; }
-            .signatures { margin-top: 50px; display: flex; justify-content: space-between; gap: 40px; }
+            th { background: #f1f5f9; padding: 8px; border: 1px solid #cbd5e1; text-align: left; font-size: 12px; }
+            .box { padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 15px; background: #f8fafc; }
+            .signatures { margin-top: 60px; display: flex; justify-content: space-between; gap: 40px; }
             .sig-line { flex: 1; border-top: 1px solid #94a3b8; text-align: center; padding-top: 8px; font-size: 12px; }
           </style>
         </head>
         <body>
           <div class="header">
-            <h2 style="margin:0;">CTDI - Controle de Estoque & Almoxarifado</h2>
-            <p style="margin:4px 0 0 0; font-size: 13px; color: #64748b;">Comprovante de Entrega e Requisição de Materiais</p>
+            <h2 style="margin:0;">CTDI - Controle de Estoque & Suprimentos</h2>
+            <p style="margin:4px 0 0 0; font-size: 14px; color: #475569;">
+              <strong>SOLICITAÇÃO DE COMPRA DE MATERIAIS</strong> - #${req.code}
+            </p>
           </div>
 
-          <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px;">
+          <div class="box" style="display: flex; justify-content: space-between;">
             <div>
-              <p style="margin: 3px 0;"><strong>Solicitação:</strong> ${req.code}</p>
+              <p style="margin: 3px 0;"><strong>Destino da Compra:</strong> ${req.destination === 'REPOSICAO_ESTOQUE' ? '📦 Reposição de Estoque (Almoxarifado)' : '⚡ Uso Imediato (Aplicação Direta)'}</p>
               <p style="margin: 3px 0;"><strong>Solicitante:</strong> ${req.requester}</p>
               <p style="margin: 3px 0;"><strong>Departamento:</strong> ${req.department}</p>
+              ${req.costCenter ? `<p style="margin: 3px 0;"><strong>Centro de Custo / O.S.:</strong> ${req.costCenter}</p>` : ''}
             </div>
             <div>
               <p style="margin: 3px 0;"><strong>Data de Abertura:</strong> ${new Date(req.createdAt).toLocaleString('pt-BR')}</p>
-              <p style="margin: 3px 0;"><strong>Status:</strong> ${req.status}</p>
-              <p style="margin: 3px 0;"><strong>Motivo / Destino:</strong> ${req.reason}</p>
+              <p style="margin: 3px 0;"><strong>Prioridade:</strong> ${req.priority}</p>
+              <p style="margin: 3px 0;"><strong>Status Atual:</strong> ${req.status}</p>
+              ${req.invoiceNumber ? `<p style="margin: 3px 0;"><strong>Nota Fiscal:</strong> ${req.invoiceNumber}</p>` : ''}
             </div>
           </div>
 
-          <h4>Itens Requisitados:</h4>
+          <p><strong>Motivo / Justificativa:</strong> ${req.reason}</p>
+
+          <h4>Itens Solicitados:</h4>
           <table>
             <thead>
               <tr>
-                <th>SKU</th>
-                <th>Descrição do Item</th>
-                <th style="text-align: center;">Quantidade</th>
+                <th>Código/SKU</th>
+                <th>Material / Especificação</th>
+                <th style="text-align: center;">Qtd</th>
+                <th style="text-align: right;">Valor Unit. Est.</th>
+                <th style="text-align: right;">Total Est.</th>
               </tr>
             </thead>
             <tbody>
-              ${itemsHtml}
+              ${itemsRows}
             </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" style="text-align: right; font-weight: bold; padding: 8px;">TOTAL ESTIMADO:</td>
+                <td style="text-align: right; font-weight: bold; padding: 8px; color: #0369a1;">R$ ${req.totalEstimatedValue.toFixed(2)}</td>
+              </tr>
+            </tfoot>
           </table>
+
+          ${req.notes ? `<p style="margin-top: 20px;"><strong>Observações:</strong> ${req.notes}</p>` : ''}
 
           <div class="signatures">
             <div class="sig-line">
               <strong>${req.requester}</strong><br>
-              Assinatura do Solicitante / Recebedor
+              Solicitante
             </div>
             <div class="sig-line">
-              <strong>${req.fulfilledBy || 'Almoxarife Responsável'}</strong><br>
-              Assinatura do Almoxarifado
+              <strong>Aprovação / Gerência</strong><br>
+              Autorização de Compra
+            </div>
+            <div class="sig-line">
+              <strong>${req.receivedBy || 'Almoxarifado'}</strong><br>
+              Recebimento / Conferência
             </div>
           </div>
         </body>
@@ -146,31 +215,6 @@ export const RequestsView: React.FC = () => {
     }, 250);
   };
 
-  const handleStatusChange = (req: StockRequest, newStatus: RequestStatus) => {
-    if (newStatus === 'ATENDIDA') {
-      // Check if stock has enough
-      const insufficientItems = req.items.filter(reqItem => {
-        const stockItem = items.find(i => i.id === reqItem.itemId);
-        return !stockItem || stockItem.quantity < reqItem.quantity;
-      });
-
-      if (insufficientItems.length > 0) {
-        const names = insufficientItems.map(i => i.itemName).join(', ');
-        const confirmAnyway = window.confirm(
-          `Atenção: Os seguintes itens não possuem saldo suficiente em estoque no momento:\n\n${names}\n\nDeseja realizar a baixa mesmo assim (o saldo ficará zerado)?`
-        );
-        if (!confirmAnyway) return;
-      } else {
-        const confirmFulfill = window.confirm(
-          `Confirmar atendimento da solicitação #${req.code}?\n\nIsso dará baixa automática de ${req.items.length} item(ns) no estoque e registrará as movimentações de saída.`
-        );
-        if (!confirmFulfill) return;
-      }
-    }
-
-    updateRequestStatus(req.id, newStatus, user?.name || 'Almoxarife');
-  };
-
   return (
     <div className="space-y-6">
       
@@ -179,12 +223,12 @@ export const RequestsView: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <span className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-              <ClipboardList className="w-6 h-6" />
+              <ShoppingCart className="w-6 h-6" />
             </span>
-            Solicitações de Peças & Materiais
+            Solicitações de Compra
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Controle de requisições, acompanhamento de separação e baixas automáticas de estoque
+            Aquisição de materiais para <strong>uso imediato (aplicação direta)</strong> ou <strong>reposição de estoque</strong>
           </p>
         </div>
 
@@ -206,7 +250,7 @@ export const RequestsView: React.FC = () => {
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Nova Solicitação</span>
+            <span>Nova Solicitação de Compra</span>
           </button>
         </div>
       </div>
@@ -214,59 +258,61 @@ export const RequestsView: React.FC = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Total Requests */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold mb-1">
-            <span>TOTAL DE PEDIDOS</span>
-            <Boxes className="w-4 h-4 text-slate-400" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900">{totalRequests}</div>
-          <div className="text-[11px] text-slate-400 mt-1">Requisições no histórico</div>
-        </div>
-
-        {/* Pendentes */}
+        {/* Em Cotação / Solicitados */}
         <div 
-          onClick={() => setStatusFilter(statusFilter === 'PENDENTE' ? 'TODOS' : 'PENDENTE')}
+          onClick={() => setStatusFilter(statusFilter === 'SOLICITADO' ? 'TODOS' : 'SOLICITADO')}
           className={`p-5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
-            statusFilter === 'PENDENTE' ? 'bg-amber-50/70 border-amber-300 ring-2 ring-amber-400' : 'bg-white border-slate-200 hover:border-amber-300'
+            statusFilter === 'SOLICITADO' ? 'bg-amber-50/70 border-amber-300 ring-2 ring-amber-400' : 'bg-white border-slate-200 hover:border-amber-300'
           }`}
         >
           <div className="flex items-center justify-between text-amber-800 text-xs font-semibold mb-1">
-            <span>PENDENTES</span>
+            <span>EM COTAÇÃO / ABERTAS</span>
             <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
           </div>
-          <div className="text-2xl font-bold text-amber-600">{pendingCount}</div>
-          <div className="text-[11px] text-amber-700/80 mt-1">Aguardando atendimento</div>
+          <div className="text-2xl font-bold text-amber-600">{inQuotationCount}</div>
+          <div className="text-[11px] text-amber-700/80 mt-1">Aguardando aprovação / compra</div>
         </div>
 
-        {/* Em Separação */}
+        {/* Comprados / A caminho */}
         <div 
-          onClick={() => setStatusFilter(statusFilter === 'EM_SEPARACAO' ? 'TODOS' : 'EM_SEPARACAO')}
+          onClick={() => setStatusFilter(statusFilter === 'COMPRADO' ? 'TODOS' : 'COMPRADO')}
           className={`p-5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
-            statusFilter === 'EM_SEPARACAO' ? 'bg-blue-50/70 border-blue-300 ring-2 ring-blue-400' : 'bg-white border-slate-200 hover:border-blue-300'
+            statusFilter === 'COMPRADO' ? 'bg-blue-50/70 border-blue-300 ring-2 ring-blue-400' : 'bg-white border-slate-200 hover:border-blue-300'
           }`}
         >
           <div className="flex items-center justify-between text-blue-800 text-xs font-semibold mb-1">
-            <span>EM SEPARAÇÃO</span>
-            <Package className="w-4 h-4 text-blue-600" />
+            <span>PEDIDO EMITIDO</span>
+            <Truck className="w-4 h-4 text-blue-600" />
           </div>
-          <div className="text-2xl font-bold text-blue-600">{inProgressCount}</div>
-          <div className="text-[11px] text-blue-700/80 mt-1">Em preparo no estoque</div>
+          <div className="text-2xl font-bold text-blue-600">{purchasedCount}</div>
+          <div className="text-[11px] text-blue-700/80 mt-1">A caminho / Aguardando entrega</div>
         </div>
 
-        {/* Atendidas */}
+        {/* Recebidos */}
         <div 
-          onClick={() => setStatusFilter(statusFilter === 'ATENDIDA' ? 'TODOS' : 'ATENDIDA')}
+          onClick={() => setStatusFilter(statusFilter === 'RECEBIDO' ? 'TODOS' : 'RECEBIDO')}
           className={`p-5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
-            statusFilter === 'ATENDIDA' ? 'bg-emerald-50/70 border-emerald-300 ring-2 ring-emerald-400' : 'bg-white border-slate-200 hover:border-emerald-300'
+            statusFilter === 'RECEBIDO' ? 'bg-emerald-50/70 border-emerald-300 ring-2 ring-emerald-400' : 'bg-white border-slate-200 hover:border-emerald-300'
           }`}
         >
           <div className="flex items-center justify-between text-emerald-800 text-xs font-semibold mb-1">
-            <span>ATENDIDAS</span>
+            <span>RECEBIDOS</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-2xl font-bold text-emerald-600">{fulfilledCount}</div>
-          <div className="text-[11px] text-emerald-700/80 mt-1">Entregues com baixa realizada</div>
+          <div className="text-2xl font-bold text-emerald-600">{receivedCount}</div>
+          <div className="text-[11px] text-emerald-700/80 mt-1">Entregues ou estocados</div>
+        </div>
+
+        {/* Total Aberto Valor */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-semibold mb-1">
+            <span>VALOR EM ABERTO</span>
+            <DollarSign className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900 font-mono">
+            R$ {totalOpenValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-1">Total de pedidos em andamento</div>
         </div>
 
       </div>
@@ -279,33 +325,54 @@ export const RequestsView: React.FC = () => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por código (ex: REQ-2026), solicitante, motivo ou nome da peça..."
+            placeholder="Buscar por código (SC-), solicitante, motivo, material, NF ou fornecedor..."
             className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl outline-hidden focus:border-blue-500 focus:bg-white transition-all"
           />
         </div>
 
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto w-full md:w-auto shrink-0 pb-1 md:pb-0">
-          {[
-            { id: 'TODOS', label: 'Todos' },
-            { id: 'PENDENTE', label: 'Pendentes' },
-            { id: 'EM_SEPARACAO', label: 'Em Separação' },
-            { id: 'ATENDIDA', label: 'Atendidas' },
-            { id: 'CANCELADA', label: 'Canceladas' },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setStatusFilter(tab.id as RequestStatus | 'TODOS')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
-                statusFilter === tab.id
-                  ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Destination Filter */}
+        <div className="flex items-center bg-slate-100 p-0.5 rounded-xl text-xs font-medium shrink-0 w-full md:w-auto">
+          <button
+            onClick={() => setDestinationFilter('TODOS')}
+            className={`px-3 py-1.5 rounded-lg transition-all ${
+              destinationFilter === 'TODOS' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Todos os Tipos
+          </button>
+          <button
+            onClick={() => setDestinationFilter('USO_IMEDIATO')}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+              destinationFilter === 'USO_IMEDIATO' ? 'bg-white text-blue-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 text-blue-600" />
+            <span>Uso Imediato</span>
+          </button>
+          <button
+            onClick={() => setDestinationFilter('REPOSICAO_ESTOQUE')}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+              destinationFilter === 'REPOSICAO_ESTOQUE' ? 'bg-white text-emerald-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Reposição Estoque</span>
+          </button>
         </div>
+
+        {/* Status Filter */}
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as RequestStatus | 'TODOS')}
+          className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500 shrink-0 w-full md:w-auto"
+        >
+          <option value="TODOS">Todos os Status</option>
+          <option value="SOLICITADO">Solicitado</option>
+          <option value="EM_COTACAO">Em Cotação</option>
+          <option value="COMPRADO">Comprado / Pedido Emitido</option>
+          <option value="RECEBIDO">Recebido</option>
+          <option value="CANCELADO">Cancelado</option>
+        </select>
 
         {/* Priority Filter */}
         <select
@@ -326,15 +393,15 @@ export const RequestsView: React.FC = () => {
         {filteredRequests.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs">
             <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-400">
-              <ClipboardList className="w-6 h-6" />
+              <ShoppingCart className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-bold text-slate-700">Nenhuma solicitação encontrada</h3>
+            <h3 className="text-sm font-bold text-slate-700">Nenhuma solicitação de compra encontrada</h3>
             <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-              {searchTerm || statusFilter !== 'TODOS'
-                ? 'Tente alterar os termos de busca ou filtros aplicados acima.'
-                : 'Clique no botão "Nova Solicitação" para abrir o primeiro pedido de peças.'}
+              {searchTerm || statusFilter !== 'TODOS' || destinationFilter !== 'TODOS'
+                ? 'Tente alterar os filtros ou termos de busca aplicados.'
+                : 'Clique no botão "Nova Solicitação de Compra" para abrir a primeira requisição de material.'}
             </p>
-            {!searchTerm && statusFilter === 'TODOS' && (
+            {!searchTerm && statusFilter === 'TODOS' && destinationFilter === 'TODOS' && (
               <button
                 onClick={() => setIsNewModalOpen(true)}
                 className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition-colors shadow-xs"
@@ -346,22 +413,37 @@ export const RequestsView: React.FC = () => {
           </div>
         ) : (
           filteredRequests.map(req => {
-            const isPending = req.status === 'PENDENTE';
-            const isInProgress = req.status === 'EM_SEPARACAO';
-            const isFulfilled = req.status === 'ATENDIDA';
-            const isCancelled = req.status === 'CANCELADA';
+            const isSolicitado = req.status === 'SOLICITADO';
+            const isCotacao = req.status === 'EM_COTACAO';
+            const isComprado = req.status === 'COMPRADO';
+            const isRecebido = req.status === 'RECEBIDO';
+            const isCancelado = req.status === 'CANCELADO';
+            const isEstoque = req.destination === 'REPOSICAO_ESTOQUE';
 
             return (
               <div 
                 key={req.id} 
                 className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-slate-300 transition-all space-y-4"
               >
-                {/* Header: Code, Requester, Department, Priority & Status */}
+                {/* Header: Code, Destination Badge, Department, Priority & Status */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <span className="font-mono font-bold text-sm text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg">
                       #{req.code}
                     </span>
+
+                    {/* Destination Badge */}
+                    {isEstoque ? (
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
+                        <Package className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>REPOSIÇÃO DE ESTOQUE</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-blue-600" />
+                        <span>USO IMEDIATO / DIRETO</span>
+                      </span>
+                    )}
 
                     {/* Department Tag */}
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
@@ -392,28 +474,32 @@ export const RequestsView: React.FC = () => {
                   {/* Status Badge */}
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 ${
-                      isPending
+                      isSolicitado
                         ? 'bg-amber-100 text-amber-800'
-                        : isInProgress
+                        : isCotacao
+                        ? 'bg-purple-100 text-purple-800'
+                        : isComprado
                         ? 'bg-blue-100 text-blue-800'
-                        : isFulfilled
+                        : isRecebido
                         ? 'bg-emerald-100 text-emerald-800'
                         : 'bg-slate-100 text-slate-600'
                     }`}>
-                      {isPending && <Clock className="w-3.5 h-3.5 text-amber-600" />}
-                      {isInProgress && <Package className="w-3.5 h-3.5 text-blue-600" />}
-                      {isFulfilled && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
-                      {isCancelled && <XCircle className="w-3.5 h-3.5 text-slate-500" />}
-                      {req.status === 'PENDENTE' && 'Pendente'}
-                      {req.status === 'EM_SEPARACAO' && 'Em Separação'}
-                      {req.status === 'ATENDIDA' && 'Atendida / Entregue'}
-                      {req.status === 'CANCELADA' && 'Cancelada'}
+                      {isSolicitado && <Clock className="w-3.5 h-3.5 text-amber-600" />}
+                      {isCotacao && <FileText className="w-3.5 h-3.5 text-purple-600" />}
+                      {isComprado && <Truck className="w-3.5 h-3.5 text-blue-600" />}
+                      {isRecebido && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                      {isCancelado && <XCircle className="w-3.5 h-3.5 text-slate-500" />}
+                      {req.status === 'SOLICITADO' && 'Solicitado'}
+                      {req.status === 'EM_COTACAO' && 'Em Cotação'}
+                      {req.status === 'COMPRADO' && 'Pedido Emitido'}
+                      {req.status === 'RECEBIDO' && 'Recebido / Entregue'}
+                      {req.status === 'CANCELADO' && 'Cancelado'}
                     </span>
                   </div>
                 </div>
 
-                {/* Details: Requester, Reason, Date */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                {/* Details: Requester, Reason, Cost Center, Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div>
                     <span className="text-slate-400 block text-[11px]">Solicitante:</span>
                     <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
@@ -423,9 +509,16 @@ export const RequestsView: React.FC = () => {
                   </div>
 
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Motivo / Aplicação:</span>
+                    <span className="text-slate-400 block text-[11px]">Motivo / Justificativa:</span>
                     <span className="font-medium text-slate-800 block mt-0.5">
                       {req.reason}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">Centro de Custo / O.S.:</span>
+                    <span className="font-medium text-slate-700 block mt-0.5">
+                      {req.costCenter || 'Não informado'}
                     </span>
                   </div>
 
@@ -438,54 +531,92 @@ export const RequestsView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Items List inside card */}
+                {/* Items List */}
                 <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-2">
-                  <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                    Peças Requisitadas ({req.items.length}):
+                  <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
+                    <span>Materiais Solicitados ({req.items.length}):</span>
+                    {req.totalEstimatedValue > 0 && (
+                      <span className="text-slate-900 font-mono font-bold lowercase">
+                        Total est: R$ {req.totalEstimatedValue.toFixed(2)}
+                      </span>
+                    )}
                   </div>
 
                   <div className="divide-y divide-slate-200/60">
-                    {req.items.map(item => {
-                      const currentStockItem = items.find(i => i.id === item.itemId);
-                      const currentStockQty = currentStockItem ? currentStockItem.quantity : 0;
-                      const hasEnoughStock = currentStockQty >= item.quantity;
-
-                      return (
-                        <div key={item.itemId} className="py-2 flex items-center justify-between text-xs gap-3">
-                          <div className="min-w-0">
-                            <span className="font-semibold text-slate-800 block truncate">{item.itemName}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">SKU: {item.sku}</span>
-                          </div>
-
-                          <div className="flex items-center gap-4 shrink-0 font-mono">
-                            <span className="px-2.5 py-1 bg-white border border-slate-200 text-slate-900 rounded-lg font-bold">
-                              {item.quantity} {item.unit}
-                            </span>
-
-                            {!isFulfilled && !isCancelled && (
-                              <span className={`text-[10px] ${hasEnoughStock ? 'text-slate-500' : 'text-rose-600 font-bold'}`}>
-                                Saldo em estoque: {currentStockQty} {item.unit}
+                    {req.items.map(item => (
+                      <div key={item.id} className="py-2.5 flex items-center justify-between text-xs gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-800 truncate">{item.itemName}</span>
+                            {item.isNewItem ? (
+                              <span className="text-[9px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded-full font-bold">
+                                NOVO ITEM
+                              </span>
+                            ) : (
+                              <span className="text-[9px] bg-white border border-slate-200 text-slate-600 font-mono px-1.5 py-0.2 rounded-full">
+                                SKU: {item.sku}
                               </span>
                             )}
                           </div>
+
+                          <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-3">
+                            {item.supplierSuggested && (
+                              <span className="flex items-center gap-1">
+                                <Building2 className="w-3 h-3 text-slate-400" />
+                                Fornecedor: <strong>{item.supplierSuggested}</strong>
+                              </span>
+                            )}
+                            {item.linkOrReference && (
+                              <a 
+                                href={item.linkOrReference.startsWith('http') ? item.linkOrReference : `https://${item.linkOrReference}`} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                className="text-blue-600 hover:underline flex items-center gap-1 truncate max-w-[200px]"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                <span>Ver cotação/link</span>
+                              </a>
+                            )}
+                          </div>
                         </div>
-                      );
-                    })}
+
+                        <div className="flex items-center gap-4 shrink-0 font-mono">
+                          <div className="text-right">
+                            <span className="px-2.5 py-1 bg-white border border-slate-200 text-slate-900 rounded-lg font-bold">
+                              {item.quantity} {item.unit}
+                            </span>
+                            {item.estimatedUnitPrice ? (
+                              <div className="text-[10px] text-slate-500 mt-0.5">
+                                R$ {item.totalEstimatedPrice?.toFixed(2)}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Additional notes or fulfillment info */}
+                {/* Additional notes or receipt details */}
                 {req.notes && (
                   <div className="text-xs text-slate-500 bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
                     <strong>Obs:</strong> {req.notes}
                   </div>
                 )}
 
-                {isFulfilled && req.fulfilledAt && (
-                  <div className="text-[11px] text-emerald-700 bg-emerald-50/70 p-2 rounded-lg flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                {isRecebido && req.receivedAt && (
+                  <div className={`text-xs p-3 rounded-xl flex items-center gap-2 border ${
+                    isEstoque 
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                      : 'bg-blue-50 text-blue-800 border-blue-200'
+                  }`}>
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
                     <span>
-                      Atendido por <strong>{req.fulfilledBy}</strong> em {new Date(req.fulfilledAt).toLocaleString('pt-BR')} (baixa realizada no estoque).
+                      Recebido por <strong>{req.receivedBy}</strong> em {new Date(req.receivedAt).toLocaleString('pt-BR')}
+                      {req.invoiceNumber && <> • NF: <strong>{req.invoiceNumber}</strong></>}
+                      {isEstoque 
+                        ? ' • As peças entraram automaticamente no saldo do estoque.' 
+                        : ' • Peça entregue diretamente para aplicação/solicitante.'}
                     </span>
                   </div>
                 )}
@@ -494,12 +625,12 @@ export const RequestsView: React.FC = () => {
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2 flex-wrap">
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => handlePrintReceipt(req)}
+                      onClick={() => handlePrintRequest(req)}
                       className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-                      title="Imprimir comprovante com termo de entrega"
+                      title="Imprimir solicitação de compra / comprovante"
                     >
                       <Printer className="w-3.5 h-3.5" />
-                      <span>Comprovante</span>
+                      <span>Imprimir</span>
                     </button>
 
                     {(user?.role === 'ADMIN' || user?.role === 'GERENTE') && (
@@ -519,47 +650,57 @@ export const RequestsView: React.FC = () => {
 
                   {/* Status transitions */}
                   <div className="flex items-center gap-2">
-                    {isPending && (
+                    {isSolicitado && (
                       <>
                         <button
-                          onClick={() => handleStatusChange(req, 'CANCELADA')}
+                          onClick={() => updateRequestStatus(req.id, 'CANCELADA')}
                           className="px-3 py-1.5 text-slate-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl text-xs font-medium transition-colors"
                         >
                           Cancelar
                         </button>
                         <button
-                          onClick={() => handleStatusChange(req, 'EM_SEPARACAO')}
-                          className="px-3.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                          onClick={() => updateRequestStatus(req.id, 'EM_COTACAO')}
+                          className="px-3.5 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                         >
-                          <span>Separar Peças</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Em Cotação</span>
                         </button>
                         <button
-                          onClick={() => handleStatusChange(req, 'ATENDIDA')}
-                          className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                          onClick={() => updateRequestStatus(req.id, 'COMPRADO')}
+                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Atender & Baixar Estoque</span>
+                          <Truck className="w-3.5 h-3.5" />
+                          <span>Emitir Pedido</span>
                         </button>
                       </>
                     )}
 
-                    {isInProgress && (
+                    {isCotacao && (
                       <>
                         <button
-                          onClick={() => handleStatusChange(req, 'CANCELADA')}
+                          onClick={() => updateRequestStatus(req.id, 'CANCELADA')}
                           className="px-3 py-1.5 text-slate-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl text-xs font-medium transition-colors"
                         >
                           Cancelar
                         </button>
                         <button
-                          onClick={() => handleStatusChange(req, 'ATENDIDA')}
-                          className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                          onClick={() => updateRequestStatus(req.id, 'COMPRADO')}
+                          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Concluir Atendimento & Baixar Estoque</span>
+                          <Truck className="w-3.5 h-3.5" />
+                          <span>Pedido Comprado</span>
                         </button>
                       </>
+                    )}
+
+                    {isComprado && (
+                      <button
+                        onClick={() => handleOpenReceiveModal(req)}
+                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Registrar Recebimento {isEstoque && '(Entrada no Estoque)'}</span>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -575,6 +716,92 @@ export const RequestsView: React.FC = () => {
         isOpen={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
       />
+
+      {/* Receive Modal (Confirmação de Recebimento com NF e Responsável) */}
+      {receivingRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-base font-bold text-slate-900">
+                  Registrar Recebimento de Compra
+                </h3>
+              </div>
+              <button
+                onClick={() => setReceivingRequest(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-600 space-y-2">
+              <p>
+                Confirma o recebimento da solicitação <strong>#{receivingRequest.code}</strong>?
+              </p>
+              
+              {receivingRequest.destination === 'REPOSICAO_ESTOQUE' ? (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs">
+                  📦 <strong>Reposição de Estoque:</strong> As quantidades de {receivingRequest.items.length} item(ns) serão somadas <strong>automaticamente ao saldo do estoque</strong> e registradas em Movimentações de Entrada!
+                </div>
+              ) : (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-xs">
+                  ⚡ <strong>Uso Imediato:</strong> O material será registrado como entregue diretamente para <strong>{receivingRequest.requester}</strong>, sem inflar o saldo do estoque do almoxarifado.
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Número da Nota Fiscal (NF):
+                </label>
+                <input
+                  type="text"
+                  value={invoiceInput}
+                  onChange={(e) => setInvoiceInput(e.target.value)}
+                  placeholder="Ex: NF-e 124580"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Recebido e Conferido por: *
+                </label>
+                <input
+                  type="text"
+                  value={receiverInput}
+                  onChange={(e) => setReceiverInput(e.target.value)}
+                  placeholder="Nome do conferente / almoxarife"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setReceivingRequest(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReceive}
+                className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Confirmar Recebimento</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

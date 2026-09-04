@@ -202,31 +202,42 @@ export interface RegisterData {
   phone?: string;
 }
 
-export type RequestStatus = 'PENDENTE' | 'EM_SEPARACAO' | 'ATENDIDA' | 'CANCELADA';
+export type PurchaseDestination = 'USO_IMEDIATO' | 'REPOSICAO_ESTOQUE';
+export type RequestStatus = 'SOLICITADO' | 'EM_COTACAO' | 'COMPRADO' | 'RECEBIDO' | 'CANCELADO';
 export type RequestPriority = 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
 
 export interface RequestedItem {
-  itemId: string;
-  sku: string;
+  id: string;
+  itemId?: string;
+  isNewItem: boolean;
+  sku?: string;
   itemName: string;
   quantity: number;
-  unitPrice: number;
   unit: UnitType;
+  estimatedUnitPrice?: number;
+  totalEstimatedPrice?: number;
+  supplierSuggested?: string;
+  linkOrReference?: string;
 }
 
 export interface StockRequest {
   id: string;
   code: string;
+  destination: PurchaseDestination;
   department: Department;
   requester: string;
   priority: RequestPriority;
   status: RequestStatus;
   reason: string;
+  costCenter?: string;
   items: RequestedItem[];
+  totalEstimatedValue: number;
   createdAt: string;
   updatedAt: string;
-  fulfilledAt?: string;
-  fulfilledBy?: string;
+  purchasedAt?: string;
+  receivedAt?: string;
+  receivedBy?: string;
+  invoiceNumber?: string;
   notes?: string;
 }
 

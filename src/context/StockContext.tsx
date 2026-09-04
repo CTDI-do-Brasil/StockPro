@@ -78,9 +78,9 @@ interface StockContextType {
   updateWorkOrder: (id: string, order: Partial<WorkOrder>) => void;
   deleteWorkOrder: (id: string) => void;
 
-  // Requests (Solicitações de Peças / Material)
+  // Requests (Solicitações de Compras: Uso Imediato vs Reposição de Estoque)
   createRequest: (data: Omit<StockRequest, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'status'>) => StockRequest;
-  updateRequestStatus: (id: string, status: RequestStatus, fulfilledBy?: string, notes?: string) => void;
+  updateRequestStatus: (id: string, status: RequestStatus, responsibleUser?: string, invoiceNumber?: string, notes?: string) => void;
   deleteRequest: (id: string) => void;
 
   // Suppliers & Locations
@@ -560,18 +560,19 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setWorkOrders(prev => prev.filter(wo => wo.id !== id));
   };
 
-  // Requests (Solicitações de Peças / Material)
+  // Requests (Solicitações de Compras: Uso Imediato vs Reposição de Estoque)
   const createRequest = (data: Omit<StockRequest, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'status'>): StockRequest => {
     const now = new Date().toISOString();
     const count = requests.length + 1;
     const year = new Date().getFullYear();
-    const code = `REQ-${year}-${String(count).padStart(3, '0')}`;
+    const prefix = data.destination === 'REPOSICAO_ESTOQUE' ? 'SC-EST' : 'SC-DIR';
+    const code = `${prefix}-${year}-${String(count).padStart(3, '0')}`;
 
     const newRequest: StockRequest = {
       ...data,
       id: `req-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       code,
-      status: 'PENDENTE',
+      status: 'SOLICITADO',
       createdAt: now,
       updatedAt: now
     };
@@ -580,51 +581,111 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return newRequest;
   };
 
-  const updateRequestStatus = (id: string, status: RequestStatus, fulfilledBy?: string, notes?: string) => {
+  const updateRequestStatus = (
+    id: string, 
+    status: RequestStatus, 
+    responsibleUser?: string, 
+    invoiceNumber?: string,
+    notes?: string
+  ) => {
     const now = new Date().toISOString();
 
     setRequests(prev => prev.map(req => {
       if (req.id !== id) return req;
 
-      // Se mudar para ATENDIDA, dá baixa automática no estoque e registra movimentações de saída
-      if (status === 'ATENDIDA' && req.status !== 'ATENDIDA') {
-        req.items.forEach(reqItem => {
-          setItems(currentItems => currentItems.map(item => {
-            if (item.id === reqItem.itemId) {
-              return {
-                ...item,
-                quantity: Math.max(0, item.quantity - reqItem.quantity),
+      // Se a compra for marcada como RECEBIDO e ainda não tiver sido recebida:
+      if (status === 'RECEBIDO' && req.status !== 'RECEBIDO') {
+        // Se a finalidade for REPOSIÇÃO DE ESTOQUE, dá ENTRADA AUTOMÁTICA no saldo do estoque
+        if (req.destination === 'REPOSICAO_ESTOQUE') {
+          req.items.forEach(reqItem => {
+            if (reqItem.itemId) {
+              // Item já existente no inventário
+              setItems(currentItems => currentItems.map(item => {
+                if (item.id === reqItem.itemId) {
+                  return {
+                    ...item,
+                    quantity: item.quantity + reqItem.quantity,
+                    unitPrice: reqItem.estimatedUnitPrice && reqItem.estimatedUnitPrice > 0 ? reqItem.estimatedUnitPrice : item.unitPrice,
+                    lastUpdated: now
+                  };
+                }
+                return item;
+              }));
+
+              const movNow = new Date().toISOString();
+              const newMovement: StockMovement = {
+                id: `mov-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                itemId: reqItem.itemId,
+                itemSku: reqItem.sku || 'N/A',
+                itemName: reqItem.itemName,
+                department: req.department,
+                type: 'ENTRADA',
+                quantity: reqItem.quantity,
+                unitPrice: reqItem.estimatedUnitPrice || 0,
+                totalValue: reqItem.quantity * (reqItem.estimatedUnitPrice || 0),
+                reason: `Recebimento de Compra #${req.code} (Reposição de Estoque)${invoiceNumber ? ` - NF: ${invoiceNumber}` : ''}`,
+                requester: req.requester,
+                date: movNow,
+                responsibleUser: responsibleUser || 'Almoxarife'
+              };
+              setMovements(curMovements => [newMovement, ...curMovements]);
+            } else {
+              // Item novo ainda não cadastrado no inventário: cadastra automaticamente e dá entrada
+              const newItemId = `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+              const generatedSku = reqItem.sku || `SKU-${Date.now().toString().slice(-6)}`;
+              const newItem: StockItem = {
+                id: newItemId,
+                name: reqItem.itemName,
+                sku: generatedSku,
+                barcode: '',
+                department: req.department,
+                category: 'Geral',
+                description: `Material adquirido via Solicitação de Compra #${req.code}`,
+                quantity: reqItem.quantity,
+                minQuantity: 1,
+                maxQuantity: reqItem.quantity * 2,
+                unit: reqItem.unit || 'un',
+                unitPrice: reqItem.estimatedUnitPrice || 0,
+                location: { warehouse: 'Almoxarifado Principal', aisleRack: 'Geral', shelfBin: 'A-01' },
+                supplier: reqItem.supplierSuggested || '',
+                manufacturer: '',
+                isEquipment: false,
+                tags: ['compra_nova'],
+                createdAt: now,
                 lastUpdated: now
               };
-            }
-            return item;
-          }));
+              setItems(currentItems => [newItem, ...currentItems]);
 
-          const movNow = new Date().toISOString();
-          const newMovement: StockMovement = {
-            id: `mov-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            itemId: reqItem.itemId,
-            itemSku: reqItem.sku,
-            itemName: reqItem.itemName,
-            department: req.department,
-            type: 'SAIDA',
-            quantity: reqItem.quantity,
-            unitPrice: reqItem.unitPrice || 0,
-            totalValue: reqItem.quantity * (reqItem.unitPrice || 0),
-            reason: `Atendimento de Solicitação #${req.code} - ${req.reason}`,
-            requester: req.requester,
-            date: movNow,
-            responsibleUser: fulfilledBy || 'Almoxarife'
-          };
-          setMovements(curMovements => [newMovement, ...curMovements]);
-        });
+              const movNow = new Date().toISOString();
+              const newMovement: StockMovement = {
+                id: `mov-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                itemId: newItemId,
+                itemSku: generatedSku,
+                itemName: reqItem.itemName,
+                department: req.department,
+                type: 'ENTRADA',
+                quantity: reqItem.quantity,
+                unitPrice: reqItem.estimatedUnitPrice || 0,
+                totalValue: reqItem.quantity * (reqItem.estimatedUnitPrice || 0),
+                reason: `Recebimento e Cadastro de Novo Item #${req.code}${invoiceNumber ? ` - NF: ${invoiceNumber}` : ''}`,
+                requester: req.requester,
+                date: movNow,
+                responsibleUser: responsibleUser || 'Almoxarife'
+              };
+              setMovements(curMovements => [newMovement, ...curMovements]);
+            }
+          });
+        }
+        // Se a finalidade for USO_IMEDIATO: a mercadoria vai direto para o solicitante/aplicação, não altera o saldo de estoque
       }
 
       return {
         ...req,
         status,
-        fulfilledAt: status === 'ATENDIDA' ? now : req.fulfilledAt,
-        fulfilledBy: status === 'ATENDIDA' ? (fulfilledBy || 'Almoxarife') : req.fulfilledBy,
+        purchasedAt: status === 'COMPRADO' ? now : req.purchasedAt,
+        receivedAt: status === 'RECEBIDO' ? now : req.receivedAt,
+        receivedBy: status === 'RECEBIDO' ? (responsibleUser || 'Almoxarife') : req.receivedBy,
+        invoiceNumber: invoiceNumber !== undefined ? invoiceNumber : req.invoiceNumber,
         notes: notes !== undefined ? notes : req.notes,
         updatedAt: now
       };
@@ -734,7 +795,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const activeLoans = loans.filter(l => l.status === 'ATIVO' || l.status === 'ATRASADO');
     const openOrders = workOrders.filter(w => w.status !== 'CONCLUIDA');
-    const pendingReqs = requests.filter(r => r.status === 'PENDENTE' || r.status === 'EM_SEPARACAO');
+    const pendingReqs = requests.filter(r => r.status === 'SOLICITADO' || r.status === 'EM_COTACAO' || r.status === 'COMPRADO');
 
     return {
       totalItems: filteredItems.length,
