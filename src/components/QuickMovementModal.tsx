@@ -22,7 +22,7 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
   const [type, setType] = useState<MovementType>(initialType);
   const [quantity, setQuantity] = useState<number>(1);
   const [reason, setReason] = useState<string>('');
-  const [costCenter, setCostCenter] = useState<string>('');
+  const [costCenter, setCostCenter] = useState<string>('TI');
   const [responsibleUser, setResponsibleUser] = useState<string>('Operador Almoxarifado');
   const [notes, setNotes] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -31,13 +31,16 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
     if (isOpen) {
       if (initialItem) {
         setSelectedItemId(initialItem.id);
+        setCostCenter(initialItem.department || 'TI');
       } else if (items.length > 0 && !selectedItemId) {
         setSelectedItemId(items[0].id);
+        setCostCenter(items[0].department || 'TI');
+      } else {
+        setCostCenter('TI');
       }
       setType(initialType);
       setQuantity(1);
       setReason('');
-      setCostCenter('');
       setError(null);
     }
   }, [isOpen, initialItem, initialType, items]);
@@ -213,7 +216,12 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
             </label>
             <select
               value={selectedItemId}
-              onChange={(e) => setSelectedItemId(e.target.value)}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setSelectedItemId(newId);
+                const found = items.find(i => i.id === newId);
+                if (found?.department) setCostCenter(found.department);
+              }}
               className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2.5 outline-hidden focus:border-blue-500"
             >
               {items.map(item => (
@@ -300,15 +308,17 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Centro de Custo:
+                Departamento:
               </label>
-              <input
-                type="text"
+              <select
                 value={costCenter}
                 onChange={(e) => setCostCenter(e.target.value)}
-                placeholder="Ex: CC-101 TI / CC-201 Manut"
-                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
-              />
+                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500 font-medium cursor-pointer"
+              >
+                <option value="TI">TI</option>
+                <option value="ENGENHARIA">Engenharia</option>
+                <option value="MANUTENCAO">Manutenção</option>
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
