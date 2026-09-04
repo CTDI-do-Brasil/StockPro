@@ -316,10 +316,6 @@ export const AlertsModal: React.FC<AlertsModalProps> = ({
                         {isCritical ? 'CRÍTICO • ESGOTADO' : 'ESTOQUE BAIXO'}
                       </span>
 
-                      <span className="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                        {alert.itemSku}
-                      </span>
-
                       <span className="text-xs text-slate-500 font-medium">
                         {alert.department} • {alert.category} {alert.subcategory ? `› ${alert.subcategory}` : ''}
                       </span>
@@ -505,8 +501,8 @@ export const AlertsModal: React.FC<AlertsModalProps> = ({
                   <h3 className="text-base font-bold text-slate-900">
                     Ajustar Sugestão & Níveis de Estoque
                   </h3>
-                  <p className="text-[11px] text-slate-500 font-mono">
-                    {configItem.itemSku} • {configItem.department}
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {configItem.department} • {configItem.itemName}
                   </p>
                 </div>
               </div>

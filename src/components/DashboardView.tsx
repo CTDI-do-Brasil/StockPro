@@ -196,7 +196,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       }`}>
                         {item.department}
                       </span>
-                      <span className="text-xs font-mono text-slate-500">{item.sku}</span>
+                      <span className="text-[11px] text-slate-500 font-medium">{item.category}</span>
                     </div>
                     <h4 className="text-xs font-bold text-slate-800 truncate mt-0.5">{item.name}</h4>
                     <p className="text-[11px] text-slate-500 truncate">

@@ -554,13 +554,9 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-slate-900 truncate">{item.itemName}</span>
-                        {item.isNewItem ? (
+                        {item.isNewItem && (
                           <span className="text-[9px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded-full font-bold">
                             NOVO ITEM
-                          </span>
-                        ) : (
-                          <span className="text-[9px] bg-slate-100 text-slate-600 font-mono px-1.5 py-0.2 rounded-full">
-                            SKU: {item.sku}
                           </span>
                         )}
                       </div>

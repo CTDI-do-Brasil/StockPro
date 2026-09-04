@@ -160,7 +160,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por item, SKU, código de barras, categoria, subcategoria, fabricante ou localização..."
+              placeholder="Buscar por item, código de barras, categoria, subcategoria, fabricante ou localização..."
               className="w-full bg-slate-100 border-none rounded-full pl-10 pr-10 py-2.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-hidden transition-all"
             />
             {searchTerm && (
@@ -420,7 +420,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                             {item.name}
                           </button>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className="font-mono text-xs text-slate-500 font-medium">#{item.sku}</span>
                             {item.isEquipment && (
                               <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded-full font-medium">
                                 Cautela
@@ -585,7 +584,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       }`}>
                         {item.department}
                       </span>
-                      <span className="font-mono text-xs text-slate-500 font-medium">#{item.sku}</span>
                       {item.isEquipment && (
                         <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded-full font-medium">
                           Cautela
@@ -758,10 +756,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               {/* Detailed specs */}
               <div className="space-y-2 text-xs text-slate-700">
                 <div className="grid grid-cols-2 gap-2 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
-                  <div>
-                    <span className="text-slate-400 block">Código SKU:</span>
-                    <span className="font-mono font-bold text-slate-900">#{selectedItemDetail.sku}</span>
-                  </div>
                   <div>
                     <span className="text-slate-400 block">Código de Barras:</span>
                     <span className="font-mono font-bold text-slate-900">{selectedItemDetail.barcode}</span>

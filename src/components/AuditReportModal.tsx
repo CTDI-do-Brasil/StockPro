@@ -150,7 +150,7 @@ export const AuditReportModal: React.FC<AuditReportModalProps> = ({ onClose }) =
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 print:border-black text-slate-500 print:text-black font-bold">
-                    <th className="py-2">SKU</th>
+                    <th className="py-2">#</th>
                     <th className="py-2">Descrição da Peça</th>
                     <th className="py-2">Setor</th>
                     <th className="py-2 text-right">Saldo Atual</th>
@@ -168,12 +168,12 @@ export const AuditReportModal: React.FC<AuditReportModalProps> = ({ onClose }) =
                       </td>
                     </tr>
                   ) : (
-                    lowStockItems.map(item => {
+                    lowStockItems.map((item, idx) => {
                       const suggestBuy = Math.max(1, (item.maxQuantity || item.minQuantity * 2) - item.quantity);
                       const cost = suggestBuy * item.unitPrice;
                       return (
                         <tr key={item.id} className="py-2">
-                          <td className="py-2 font-mono font-bold text-blue-600 print:text-black">{item.sku}</td>
+                          <td className="py-2 font-mono text-slate-500 print:text-black">{idx + 1}</td>
                           <td className="py-2 font-bold text-slate-900 print:text-black">{item.name}</td>
                           <td className="py-2 text-slate-600 print:text-slate-700">{item.department}</td>
                           <td className="py-2 text-right font-mono font-bold text-rose-600 print:text-red-700">
@@ -209,7 +209,7 @@ export const AuditReportModal: React.FC<AuditReportModalProps> = ({ onClose }) =
                 <thead>
                   <tr className="border-b-2 border-slate-200 print:border-black text-slate-500 print:text-black font-bold">
                     <th className="py-2">Localização</th>
-                    <th className="py-2">SKU</th>
+                    <th className="py-2">Setor</th>
                     <th className="py-2">Descrição do Item</th>
                     <th className="py-2">Cód. Barras</th>
                     <th className="py-2 text-right">Saldo Sistema</th>
@@ -223,7 +223,7 @@ export const AuditReportModal: React.FC<AuditReportModalProps> = ({ onClose }) =
                       <td className="py-2 font-mono font-bold text-blue-600 print:text-black">
                         {item.location.aisleRack} » {item.location.shelfBin}
                       </td>
-                      <td className="py-2 font-mono text-slate-700">{item.sku}</td>
+                      <td className="py-2 font-medium text-slate-700">{item.department}</td>
                       <td className="py-2 font-semibold text-slate-900 print:text-black">{item.name}</td>
                       <td className="py-2 font-mono text-[10px] text-slate-500 print:text-black">{item.barcode}</td>
                       <td className="py-2 text-right font-mono font-bold text-slate-900 print:text-black">
@@ -241,10 +241,10 @@ export const AuditReportModal: React.FC<AuditReportModalProps> = ({ onClose }) =
               </table>
 
               {/* Signature block */}
-              <div className="pt-12 grid grid-cols-2 gap-8 text-center text-xs text-slate-500 print:text-black">
+              <div className="pt-8 grid grid-cols-2 gap-8 text-center text-xs text-slate-600 print:text-black">
                 <div>
                   <div className="border-t border-slate-300 print:border-black pt-2">
-                    Assinatura do Auditor / Almoxarife
+                    Assinatura do Conferente / Auditor
                   </div>
                 </div>
                 <div>
@@ -262,7 +262,7 @@ export const AuditReportModal: React.FC<AuditReportModalProps> = ({ onClose }) =
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 print:border-black text-slate-500 print:text-black font-bold">
-                    <th className="py-2">SKU</th>
+                    <th className="py-2">#</th>
                     <th className="py-2">Descrição</th>
                     <th className="py-2">Setor</th>
                     <th className="py-2">Categoria</th>
@@ -272,9 +272,9 @@ export const AuditReportModal: React.FC<AuditReportModalProps> = ({ onClose }) =
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 print:divide-slate-300">
-                  {relevantItems.map(item => (
+                  {relevantItems.map((item, idx) => (
                     <tr key={item.id}>
-                      <td className="py-2 font-mono text-blue-600 print:text-black font-bold">{item.sku}</td>
+                      <td className="py-2 font-mono text-slate-500 print:text-black">{idx + 1}</td>
                       <td className="py-2 font-bold text-slate-900 print:text-black">{item.name}</td>
                       <td className="py-2 text-slate-700">{item.department}</td>
                       <td className="py-2 text-slate-500 print:text-black">{item.category}</td>

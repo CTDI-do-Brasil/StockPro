@@ -225,7 +225,7 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
             >
               {items.map(item => (
                 <option key={item.id} value={item.id}>
-                  [{item.department}] {item.sku} - {item.name} (Atual: {item.quantity} {item.unit})
+                  [{item.department}] {item.name} (Atual: {item.quantity} {item.unit})
                 </option>
               ))}
             </select>

@@ -226,7 +226,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     }`}>
                       {matchedItem.department}
                     </span>
-                    <span className="text-xs font-mono font-bold text-slate-500">{matchedItem.sku}</span>
+                    <span className="text-xs text-slate-500 font-medium">{matchedItem.category}</span>
                   </div>
                   <h4 className="text-sm font-bold text-slate-900 mt-1">{matchedItem.name}</h4>
                   <p className="text-xs text-slate-500 mt-0.5">

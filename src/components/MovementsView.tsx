@@ -160,7 +160,7 @@ export const MovementsView: React.FC<MovementsViewProps> = ({ onOpenQuickMove })
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por item, SKU, motivo, requisitante, O.S., centro de custo ou responsável..."
+              placeholder="Buscar por item, motivo, requisitante, O.S., centro de custo ou responsável..."
               className="w-full bg-slate-100 border-none rounded-full pl-10 pr-10 py-2.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-hidden transition-all"
             />
             {searchTerm && (
@@ -382,14 +382,13 @@ export const MovementsView: React.FC<MovementsViewProps> = ({ onOpenQuickMove })
                         <div className="font-medium text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">
                           {mov.itemName}
                         </div>
-                        <div className="font-mono text-xs text-slate-400 flex items-center gap-2 mt-0.5">
-                          <span>#{mov.itemSku}</span>
-                          {mov.serialNumber && (
+                        {mov.serialNumber && (
+                          <div className="font-mono text-xs text-slate-400 flex items-center gap-2 mt-0.5">
                             <span className="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded text-[10px]">
                               SN: {mov.serialNumber}
                             </span>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </td>
 
                       {/* Department */}
@@ -487,10 +486,6 @@ export const MovementsView: React.FC<MovementsViewProps> = ({ onOpenQuickMove })
                 <div className="flex justify-between border-b border-slate-100 pb-2">
                   <span className="text-slate-500">Item:</span>
                   <span className="font-bold text-slate-900 text-right">{selectedMovementDetail.itemName}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-100 pb-2">
-                  <span className="text-slate-500">SKU / Código:</span>
-                  <span className="font-mono font-semibold text-slate-900">#{selectedMovementDetail.itemSku}</span>
                 </div>
                 <div className="flex justify-between border-b border-slate-100 pb-2">
                   <span className="text-slate-500">Tipo de Movimentação:</span>

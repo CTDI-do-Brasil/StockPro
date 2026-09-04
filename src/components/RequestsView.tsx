@@ -112,9 +112,9 @@ export const RequestsView: React.FC = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const itemsRows = req.items.map(item => `
+    const itemsRows = req.items.map((item, idx) => `
       <tr>
-        <td style="padding: 8px; border: 1px solid #cbd5e1; font-family: monospace;">${item.sku || 'NOVO'}</td>
+        <td style="padding: 8px; border: 1px solid #cbd5e1; font-family: monospace; text-align: center;">${idx + 1}</td>
         <td style="padding: 8px; border: 1px solid #cbd5e1;">
           <strong>${item.itemName}</strong>
           ${item.supplierSuggested ? `<div style="font-size: 11px; color: #64748b;">Fornecedor: ${item.supplierSuggested}</div>` : ''}
@@ -170,7 +170,7 @@ export const RequestsView: React.FC = () => {
           <table>
             <thead>
               <tr>
-                <th>Código/SKU</th>
+                <th style="width: 40px; text-align: center;">#</th>
                 <th>Material / Especificação</th>
                 <th style="text-align: center;">Qtd</th>
                 <th style="text-align: right;">Valor Unit. Est.</th>
@@ -548,13 +548,9 @@ export const RequestsView: React.FC = () => {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-slate-800 truncate">{item.itemName}</span>
-                            {item.isNewItem ? (
+                            {item.isNewItem && (
                               <span className="text-[9px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded-full font-bold">
                                 NOVO ITEM
-                              </span>
-                            ) : (
-                              <span className="text-[9px] bg-white border border-slate-200 text-slate-600 font-mono px-1.5 py-0.2 rounded-full">
-                                SKU: {item.sku}
                               </span>
                             )}
                           </div>

@@ -283,7 +283,7 @@ export const WorkOrdersView: React.FC = () => {
                         {order.itemsRequested.map((item, idx) => (
                           <div key={idx} className="flex items-center justify-between text-xs text-slate-600">
                             <span className="truncate max-w-[240px]">
-                              • {item.quantity}x {item.itemName} (#{item.sku})
+                              • {item.quantity}x {item.itemName}
                             </span>
                             <span className="font-mono text-slate-700 font-medium">
                               {(item.quantity * item.unitPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -497,7 +497,7 @@ export const WorkOrdersView: React.FC = () => {
                     {requestedItemsList.map(req => (
                       <div key={req.itemId} className="flex items-center justify-between text-xs bg-white border border-slate-100 p-2.5 rounded-lg">
                         <span className="text-slate-800 font-medium">
-                          {req.quantity}x {req.itemName} (#{req.sku})
+                          {req.quantity}x {req.itemName}
                         </span>
                         <div className="flex items-center gap-3">
                           <span className="font-mono text-emerald-600 font-bold">
