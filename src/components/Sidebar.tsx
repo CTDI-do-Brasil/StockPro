@@ -62,6 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'inventario', label: 'Estoque Geral', icon: <Package className="w-4 h-4" /> },
     { id: 'movimentacoes', label: 'Movimentações', icon: <ArrowLeftRight className="w-4 h-4" /> },
+    { id: 'solicitacoes', label: 'Solicitações', icon: <ClipboardList className="w-4 h-4" />, badge: stats.pendingRequestsCount },
     { id: 'ordens', label: 'O.S. Manutenção', icon: <Wrench className="w-4 h-4" />, badge: stats.openWorkOrdersCount },
   ];
 

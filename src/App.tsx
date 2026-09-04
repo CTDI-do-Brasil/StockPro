@@ -7,6 +7,7 @@ import { Sidebar } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
 import { InventoryView } from './components/InventoryView';
 import { MovementsView } from './components/MovementsView';
+import { RequestsView } from './components/RequestsView';
 import { LoansView } from './components/LoansView';
 import { WorkOrdersView } from './components/WorkOrdersView';
 import { LocationsSuppliersView } from './components/LocationsSuppliersView';
@@ -133,6 +134,10 @@ const MainApp: React.FC = () => {
             <MovementsView
               onOpenQuickMove={() => handleOpenQuickMove()}
             />
+          )}
+
+          {activeTab === 'solicitacoes' && (
+            <RequestsView />
           )}
 
           {activeTab === 'ordens' && (

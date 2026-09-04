@@ -202,3 +202,32 @@ export interface RegisterData {
   phone?: string;
 }
 
+export type RequestStatus = 'PENDENTE' | 'EM_SEPARACAO' | 'ATENDIDA' | 'CANCELADA';
+export type RequestPriority = 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
+
+export interface RequestedItem {
+  itemId: string;
+  sku: string;
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+  unit: UnitType;
+}
+
+export interface StockRequest {
+  id: string;
+  code: string;
+  department: Department;
+  requester: string;
+  priority: RequestPriority;
+  status: RequestStatus;
+  reason: string;
+  items: RequestedItem[];
+  createdAt: string;
+  updatedAt: string;
+  fulfilledAt?: string;
+  fulfilledBy?: string;
+  notes?: string;
+}
+
+

@@ -9,7 +9,9 @@ import {
   Department, 
   MovementType,
   Category,
-  StockAlert
+  StockAlert,
+  StockRequest,
+  RequestStatus
 } from '../types';
 import { 
   INITIAL_ITEMS, 
@@ -26,6 +28,7 @@ interface StockContextType {
   movements: StockMovement[];
   loans: EquipmentLoan[];
   workOrders: WorkOrder[];
+  requests: StockRequest[];
   suppliers: Supplier[];
   locations: WarehouseLocation[];
   categories: Category[];
@@ -75,6 +78,11 @@ interface StockContextType {
   updateWorkOrder: (id: string, order: Partial<WorkOrder>) => void;
   deleteWorkOrder: (id: string) => void;
 
+  // Requests (Solicitações de Peças / Material)
+  createRequest: (data: Omit<StockRequest, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'status'>) => StockRequest;
+  updateRequestStatus: (id: string, status: RequestStatus, fulfilledBy?: string, notes?: string) => void;
+  deleteRequest: (id: string) => void;
+
   // Suppliers & Locations
   addSupplier: (supplier: Omit<Supplier, 'id'>) => void;
   updateSupplier: (id: string, supplier: Partial<Supplier>) => void;
@@ -94,6 +102,7 @@ interface StockContextType {
     criticalStockCount: number;
     activeLoansCount: number;
     openWorkOrdersCount: number;
+    pendingRequestsCount: number;
     departmentBreakdown: Record<Department, { count: number; value: number; lowStock: number }>;
   };
 
@@ -111,6 +120,7 @@ const STORAGE_KEYS = {
   MOVEMENTS: 'gestao_estoque_movements_v3_clean',
   LOANS: 'gestao_estoque_loans_v3_clean',
   WORK_ORDERS: 'gestao_estoque_work_orders_v3_clean',
+  REQUESTS: 'gestao_estoque_requests_v3_clean',
   SUPPLIERS: 'gestao_estoque_suppliers_v3_clean',
   LOCATIONS: 'gestao_estoque_locations_v3_clean',
   CATEGORIES: 'gestao_estoque_categories_v3_clean',
@@ -157,6 +167,14 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return INITIAL_WORK_ORDERS;
   });
 
+  const [requests, setRequests] = useState<StockRequest[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.REQUESTS);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return [];
+  });
+
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.SUPPLIERS);
     if (saved) {
@@ -195,6 +213,10 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.WORK_ORDERS, JSON.stringify(workOrders));
   }, [workOrders]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(requests));
+  }, [requests]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.SUPPLIERS, JSON.stringify(suppliers));
@@ -538,6 +560,81 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setWorkOrders(prev => prev.filter(wo => wo.id !== id));
   };
 
+  // Requests (Solicitações de Peças / Material)
+  const createRequest = (data: Omit<StockRequest, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'status'>): StockRequest => {
+    const now = new Date().toISOString();
+    const count = requests.length + 1;
+    const year = new Date().getFullYear();
+    const code = `REQ-${year}-${String(count).padStart(3, '0')}`;
+
+    const newRequest: StockRequest = {
+      ...data,
+      id: `req-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      code,
+      status: 'PENDENTE',
+      createdAt: now,
+      updatedAt: now
+    };
+
+    setRequests(prev => [newRequest, ...prev]);
+    return newRequest;
+  };
+
+  const updateRequestStatus = (id: string, status: RequestStatus, fulfilledBy?: string, notes?: string) => {
+    const now = new Date().toISOString();
+
+    setRequests(prev => prev.map(req => {
+      if (req.id !== id) return req;
+
+      // Se mudar para ATENDIDA, dá baixa automática no estoque e registra movimentações de saída
+      if (status === 'ATENDIDA' && req.status !== 'ATENDIDA') {
+        req.items.forEach(reqItem => {
+          setItems(currentItems => currentItems.map(item => {
+            if (item.id === reqItem.itemId) {
+              return {
+                ...item,
+                quantity: Math.max(0, item.quantity - reqItem.quantity),
+                lastUpdated: now
+              };
+            }
+            return item;
+          }));
+
+          const movNow = new Date().toISOString();
+          const newMovement: StockMovement = {
+            id: `mov-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            itemId: reqItem.itemId,
+            itemSku: reqItem.sku,
+            itemName: reqItem.itemName,
+            department: req.department,
+            type: 'SAIDA',
+            quantity: reqItem.quantity,
+            unitPrice: reqItem.unitPrice || 0,
+            totalValue: reqItem.quantity * (reqItem.unitPrice || 0),
+            reason: `Atendimento de Solicitação #${req.code} - ${req.reason}`,
+            requester: req.requester,
+            date: movNow,
+            responsibleUser: fulfilledBy || 'Almoxarife'
+          };
+          setMovements(curMovements => [newMovement, ...curMovements]);
+        });
+      }
+
+      return {
+        ...req,
+        status,
+        fulfilledAt: status === 'ATENDIDA' ? now : req.fulfilledAt,
+        fulfilledBy: status === 'ATENDIDA' ? (fulfilledBy || 'Almoxarife') : req.fulfilledBy,
+        notes: notes !== undefined ? notes : req.notes,
+        updatedAt: now
+      };
+    }));
+  };
+
+  const deleteRequest = (id: string) => {
+    setRequests(prev => prev.filter(r => r.id !== id));
+  };
+
   // Suppliers & Locations
   const addSupplier = (sup: Omit<Supplier, 'id'>) => {
     const newSup: Supplier = { ...sup, id: `sup-${Date.now()}` };
@@ -637,6 +734,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const activeLoans = loans.filter(l => l.status === 'ATIVO' || l.status === 'ATRASADO');
     const openOrders = workOrders.filter(w => w.status !== 'CONCLUIDA');
+    const pendingReqs = requests.filter(r => r.status === 'PENDENTE' || r.status === 'EM_SEPARACAO');
 
     return {
       totalItems: filteredItems.length,
@@ -645,9 +743,10 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       criticalStockCount,
       activeLoansCount: activeLoans.length,
       openWorkOrdersCount: openOrders.length,
+      pendingRequestsCount: pendingReqs.length,
       departmentBreakdown: deptBreakdown
     };
-  }, [items, loans, workOrders, selectedDept]);
+  }, [items, loans, workOrders, requests, selectedDept]);
 
   // Reset to default sample
   const resetToDefaultData = () => {
@@ -656,6 +755,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setMovements(INITIAL_MOVEMENTS);
     setLoans(INITIAL_LOANS);
     setWorkOrders(INITIAL_WORK_ORDERS);
+    setRequests([]);
     setSuppliers(INITIAL_SUPPLIERS);
     setLocations(INITIAL_LOCATIONS);
     localStorage.clear();
@@ -671,6 +771,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       movements,
       loans,
       workOrders,
+      requests,
       suppliers,
       locations
     };
@@ -829,6 +930,10 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       createWorkOrder,
       updateWorkOrder,
       deleteWorkOrder,
+      requests,
+      createRequest,
+      updateRequestStatus,
+      deleteRequest,
       addSupplier,
       updateSupplier,
       deleteSupplier,
