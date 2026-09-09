@@ -7,8 +7,54 @@ export const authRouter = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'chave_secreta_estoque_ti_eng_manut_2026';
 
-// Memória de fallback vazia
-const fallbackUsers: any[] = [];
+// Senha padrão '123456' com hash bcrypt para os usuários de demonstração/offline
+const defaultHash = bcrypt.hashSync('123456', 10);
+
+// Usuários padrão carregados em memória caso o PostgreSQL esteja offline
+export const fallbackUsers: any[] = [
+  {
+    id: 'usr-admin-01',
+    name: 'Administrador TI',
+    email: 'admin@ctdi.com',
+    password_hash: defaultHash,
+    department: 'TI',
+    role: 'ADMIN',
+    badge: 'TI-001',
+    phone: '(11) 98765-4321',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    last_login: new Date().toISOString(),
+  },
+  {
+    id: 'usr-eng-02',
+    name: 'Gestor de Engenharia',
+    email: 'engenharia@ctdi.com',
+    password_hash: defaultHash,
+    department: 'ENGENHARIA',
+    role: 'GERENTE',
+    badge: 'ENG-002',
+    phone: '(11) 98765-1111',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    last_login: new Date().toISOString(),
+  },
+  {
+    id: 'usr-manut-03',
+    name: 'Técnico de Manutenção',
+    email: 'manutencao@ctdi.com',
+    password_hash: defaultHash,
+    department: 'MANUTENCAO',
+    role: 'TECNICO',
+    badge: 'MAN-003',
+    phone: '(11) 98765-2222',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    last_login: new Date().toISOString(),
+  }
+];
 
 // Helper para gerar token JWT
 function generateToken(user: any) {

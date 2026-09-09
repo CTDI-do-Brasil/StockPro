@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { pool, getDbStatus } from '../db';
-import { authenticateToken } from './auth';
+import { authenticateToken, fallbackUsers } from './auth';
 
 export const usersRouter = Router();
 
@@ -33,10 +33,23 @@ usersRouter.get('/', authenticateToken, async (req: any, res: Response) => {
         source: 'PostgreSQL'
       });
     } else {
-      // Fallback vazio
+      // Retornar usuários em memória caso o PostgreSQL esteja offline
       return res.json({
-        users: [],
-        source: 'Memória'
+        users: fallbackUsers.map(u => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          department: u.department,
+          role: u.role,
+          badge: u.badge || '',
+          phone: u.phone || '',
+          avatar: u.avatar || '',
+          isActive: u.is_active ?? true,
+          createdAt: u.created_at,
+          updatedAt: u.updated_at,
+          lastLogin: u.last_login,
+        })),
+        source: 'Memória (Offline)'
       });
     }
   } catch (error: any) {
