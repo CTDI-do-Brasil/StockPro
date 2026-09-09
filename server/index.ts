@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 import { initDatabase, getDbStatus } from './db';
 import { authRouter } from './routes/auth';
 import { usersRouter } from './routes/users';
+import { stockRouter } from './routes/stock';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use(express.json());
 // Rotas da API
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/stock', stockRouter);
 
 // Status da API e do Banco
 app.get('/api/health', (req, res) => {

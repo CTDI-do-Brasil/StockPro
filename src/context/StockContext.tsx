@@ -202,7 +202,71 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const [selectedDept, setSelectedDept] = useState<Department | 'TODOS'>('TODOS');
 
-  // Persistence effects
+  // Helper de requisição assíncrona para a API do PostgreSQL (StockPro)
+  const apiCall = (endpoint: string, method: string = 'POST', body?: any) => {
+    fetch(endpoint, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    }).catch(() => {
+      // Fallback silencioso: se a conexão com o servidor oscilar, o estado local e localStorage garantem continuidade
+    });
+  };
+
+  // Carregar dados iniciais diretamente do PostgreSQL StockPro na inicialização
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadFromDatabase() {
+      try {
+        const res = await fetch('/api/stock/bootstrap');
+        if (!res.ok) return;
+        const result = await res.json();
+        if (result.connected && result.data && isMounted) {
+          const dbData = result.data;
+          const hasDbContent =
+            dbData.items.length > 0 ||
+            dbData.categories.length > 0 ||
+            dbData.suppliers.length > 0 ||
+            dbData.locations.length > 0;
+
+          if (hasDbContent) {
+            setItems(dbData.items);
+            setCategories(dbData.categories);
+            setMovements(dbData.movements);
+            setLoans(dbData.loans);
+            setWorkOrders(dbData.workOrders);
+            setRequests(dbData.requests);
+            setSuppliers(dbData.suppliers);
+            setLocations(dbData.locations);
+          } else {
+            // Se o banco PostgreSQL acabou de ser criado e está vazio, migra os dados locais existentes
+            const savedItems = localStorage.getItem(STORAGE_KEYS.ITEMS);
+            const itemsToSync = savedItems ? JSON.parse(savedItems) : INITIAL_ITEMS;
+            if (itemsToSync.length > 0 || categories.length > 0) {
+              apiCall('/api/stock/sync-all', 'POST', {
+                items: itemsToSync,
+                movements,
+                loans,
+                workOrders,
+                requests,
+                suppliers,
+                locations,
+                categories,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.info('Executando em modo local / fallback offline.');
+      }
+    }
+
+    loadFromDatabase();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Efeitos de persistência em LocalStorage (cache local e segurança offline)
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(items));
   }, [items]);
@@ -247,6 +311,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     setItems(prev => [newItem, ...prev]);
+    apiCall('/api/stock/items', 'POST', newItem);
 
     // Register initial entry movement if quantity > 0
     if (newItem.quantity > 0) {
@@ -266,6 +331,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         responsibleUser: 'Administrador'
       };
       setMovements(prev => [initMovement, ...prev]);
+      apiCall('/api/stock/movements', 'POST', initMovement);
     }
 
     return newItem;
@@ -274,17 +340,24 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const updateItem = (id: string, itemData: Partial<StockItem>) => {
     const now = new Date().toISOString();
     const currentItem = items.find(i => i.id === id);
+    let itemToPersist: StockItem | null = null;
 
     setItems(prev => prev.map(item => {
       if (item.id === id) {
-        return {
+        const updated = {
           ...item,
           ...itemData,
           lastUpdated: now
         };
+        itemToPersist = updated;
+        return updated;
       }
       return item;
     }));
+
+    if (itemToPersist) {
+      apiCall('/api/stock/items', 'POST', itemToPersist);
+    }
 
     // Sincronização inteligente de valores:
     // Se o preço unitário ou dados cadastrais do item foram ajustados:
@@ -326,12 +399,15 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           0
         );
 
-        return {
+        const updatedReq = {
           ...req,
           items: updatedItems,
           totalEstimatedValue: newTotalEstimatedValue,
           updatedAt: now
         };
+
+        apiCall('/api/stock/requests', 'POST', updatedReq);
+        return updatedReq;
       }));
     }
   };
@@ -353,6 +429,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const deleteItem = (id: string) => {
     setItems(prev => prev.filter(item => item.id !== id));
+    apiCall(`/api/stock/items/${id}`, 'DELETE');
   };
 
   const getItemById = (id: string) => items.find(item => item.id === id);
@@ -376,6 +453,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       subcategories: categoryData.subcategories || []
     };
     setCategories(prev => [...prev, newCat]);
+    apiCall('/api/stock/categories', 'POST', newCat);
     return newCat;
   };
 
@@ -391,6 +469,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               : item
           ));
         }
+        apiCall('/api/stock/categories', 'POST', updated);
         return updated;
       }
       return cat;
@@ -399,6 +478,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const deleteCategory = (id: string) => {
     setCategories(prev => prev.filter(c => c.id !== id));
+    apiCall(`/api/stock/categories/${id}`, 'DELETE');
   };
 
   const addSubcategory = (categoryId: string, subcategoryName: string) => {
@@ -407,10 +487,12 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setCategories(prev => prev.map(cat => {
       if (cat.id === categoryId) {
         if (cat.subcategories.includes(trimmed)) return cat;
-        return {
+        const updated = {
           ...cat,
           subcategories: [...cat.subcategories, trimmed]
         };
+        apiCall('/api/stock/categories', 'POST', updated);
+        return updated;
       }
       return cat;
     }));
@@ -419,10 +501,12 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const deleteSubcategory = (categoryId: string, subcategoryName: string) => {
     setCategories(prev => prev.map(cat => {
       if (cat.id === categoryId) {
-        return {
+        const updated = {
           ...cat,
           subcategories: cat.subcategories.filter(s => s !== subcategoryName)
         };
+        apiCall('/api/stock/categories', 'POST', updated);
+        return updated;
       }
       return cat;
     }));
@@ -488,6 +572,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // Update item quantity
     updateItem(item.id, { quantity: newQty });
     setMovements(prev => [newMovement, ...prev]);
+    apiCall('/api/stock/movements', 'POST', newMovement);
 
     return newMovement;
   };
@@ -539,6 +624,8 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     setLoans(prev => [newLoan, ...prev]);
     setMovements(prev => [newMovement, ...prev]);
+    apiCall('/api/stock/loans', 'POST', newLoan);
+    apiCall('/api/stock/movements', 'POST', newMovement);
 
     return newLoan;
   };
@@ -551,18 +638,25 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const now = new Date().toISOString();
     const item = getItemById(loan.itemId);
 
+    let updatedLoanObj: EquipmentLoan | null = null;
     setLoans(prev => prev.map(l => {
       if (l.id === loanId) {
-        return {
+        const updated = {
           ...l,
-          status: 'DEVOLVIDO',
+          status: 'DEVOLVIDO' as const,
           actualReturnDate: now,
           conditionOnReturn,
           notes: notes ? `${l.notes || ''} | Devolução: ${notes}` : l.notes
         };
+        updatedLoanObj = updated;
+        return updated;
       }
       return l;
     }));
+
+    if (updatedLoanObj) {
+      apiCall('/api/stock/loans', 'POST', updatedLoanObj);
+    }
 
     if (item) {
       updateItem(item.id, {
@@ -590,6 +684,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       };
 
       setMovements(prev => [returnMovement, ...prev]);
+      apiCall('/api/stock/movements', 'POST', returnMovement);
     }
   };
 
@@ -611,6 +706,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     setWorkOrders(prev => [newOrder, ...prev]);
+    apiCall('/api/stock/work-orders', 'POST', newOrder);
     return newOrder;
   };
 
@@ -621,6 +717,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (data.itemsRequested) {
           updated.totalCost = data.itemsRequested.reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0);
         }
+        apiCall('/api/stock/work-orders', 'POST', updated);
         return updated;
       }
       return wo;
@@ -629,6 +726,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const deleteWorkOrder = (id: string) => {
     setWorkOrders(prev => prev.filter(wo => wo.id !== id));
+    apiCall(`/api/stock/work-orders/${id}`, 'DELETE');
   };
 
   // Requests (Solicitações de Compras: Uso Imediato vs Reposição de Estoque)
@@ -649,6 +747,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     setRequests(prev => [newRequest, ...prev]);
+    apiCall('/api/stock/requests', 'POST', newRequest);
     return newRequest;
   };
 
@@ -674,12 +773,14 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               // Item já existente no inventário
               setItems(currentItems => currentItems.map(item => {
                 if (item.id === reqItem.itemId) {
-                  return {
+                  const updatedItem = {
                     ...item,
                     quantity: item.quantity + reqItem.quantity,
                     unitPrice: reqItem.estimatedUnitPrice && reqItem.estimatedUnitPrice > 0 ? reqItem.estimatedUnitPrice : item.unitPrice,
                     lastUpdated: now
                   };
+                  apiCall('/api/stock/items', 'POST', updatedItem);
+                  return updatedItem;
                 }
                 return item;
               }));
@@ -701,6 +802,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 responsibleUser: responsibleUser || 'Almoxarife'
               };
               setMovements(curMovements => [newMovement, ...curMovements]);
+              apiCall('/api/stock/movements', 'POST', newMovement);
             } else {
               // Item novo ainda não cadastrado no inventário: cadastra automaticamente e dá entrada
               const newItemId = `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -727,6 +829,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 lastUpdated: now
               };
               setItems(currentItems => [newItem, ...currentItems]);
+              apiCall('/api/stock/items', 'POST', newItem);
 
               const movNow = new Date().toISOString();
               const newMovement: StockMovement = {
@@ -745,13 +848,14 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 responsibleUser: responsibleUser || 'Almoxarife'
               };
               setMovements(curMovements => [newMovement, ...curMovements]);
+              apiCall('/api/stock/movements', 'POST', newMovement);
             }
           });
         }
         // Se a finalidade for USO_IMEDIATO: a mercadoria vai direto para o solicitante/aplicação, não altera o saldo de estoque
       }
 
-      return {
+      const updatedReq = {
         ...req,
         status: canonicalStatus,
         purchasedAt: canonicalStatus === 'COMPRADO' ? now : req.purchasedAt,
@@ -761,34 +865,49 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         notes: notes !== undefined ? notes : req.notes,
         updatedAt: now
       };
+
+      apiCall('/api/stock/requests', 'POST', updatedReq);
+      return updatedReq;
     }));
   };
 
   const deleteRequest = (id: string) => {
     setRequests(prev => prev.filter(r => r.id !== id));
+    apiCall(`/api/stock/requests/${id}`, 'DELETE');
   };
 
   // Suppliers & Locations
   const addSupplier = (sup: Omit<Supplier, 'id'>) => {
     const newSup: Supplier = { ...sup, id: `sup-${Date.now()}` };
     setSuppliers(prev => [...prev, newSup]);
+    apiCall('/api/stock/suppliers', 'POST', newSup);
   };
 
   const updateSupplier = (id: string, sup: Partial<Supplier>) => {
-    setSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...sup } : s));
+    setSuppliers(prev => prev.map(s => {
+      if (s.id === id) {
+        const updated = { ...s, ...sup };
+        apiCall('/api/stock/suppliers', 'POST', updated);
+        return updated;
+      }
+      return s;
+    }));
   };
 
   const deleteSupplier = (id: string) => {
     setSuppliers(prev => prev.filter(s => s.id !== id));
+    apiCall(`/api/stock/suppliers/${id}`, 'DELETE');
   };
 
   const addLocation = (loc: Omit<WarehouseLocation, 'id'>) => {
     const newLoc: WarehouseLocation = { ...loc, id: `loc-${Date.now()}` };
     setLocations(prev => [...prev, newLoc]);
+    apiCall('/api/stock/locations', 'POST', newLoc);
   };
 
   const deleteLocation = (id: string) => {
     setLocations(prev => prev.filter(l => l.id !== id));
+    apiCall(`/api/stock/locations/${id}`, 'DELETE');
   };
 
   // Computed Stock Alerts (Items <= minQuantity)
@@ -925,6 +1044,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (parsed.workOrders) setWorkOrders(parsed.workOrders);
         if (parsed.suppliers) setSuppliers(parsed.suppliers);
         if (parsed.locations) setLocations(parsed.locations);
+        apiCall('/api/stock/sync-all', 'POST', parsed);
         return true;
       }
       return false;
