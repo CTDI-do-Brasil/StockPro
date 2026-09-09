@@ -204,19 +204,28 @@ authRouter.post('/register', async (req: Request, res: Response) => {
 // POST: Login
 authRouter.post('/login', async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const rawUser = req.body.email || req.body.username || req.body.usuario;
+    const password = req.body.password;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
+    if (!rawUser || !password) {
+      return res.status(400).json({ error: 'Usuário e senha são obrigatórios.' });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const userInput = rawUser.toLowerCase().trim();
+    const cleanEmail = userInput.includes('@') ? userInput : `${userInput}@ctdi.com`;
     const dbStatus = getDbStatus();
 
     if (dbStatus.connected) {
-      const result = await pool.query('SELECT * FROM users WHERE LOWER(email) = $1', [cleanEmail]);
+      const result = await pool.query(
+        `SELECT * FROM users 
+         WHERE LOWER(email) = $1 
+            OR LOWER(email) = $2 
+            OR LOWER(SPLIT_PART(email, '@', 1)) = $1 
+            OR LOWER(badge) = $1`,
+        [userInput, cleanEmail]
+      );
       if (result.rows.length === 0) {
-        return res.status(401).json({ error: 'Credenciais inválidas. Verifique o e-mail e a senha.' });
+        return res.status(401).json({ error: 'Credenciais inválidas. Verifique o usuário e a senha.' });
       }
 
       const user = result.rows[0];
@@ -227,7 +236,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
 
       const isMatch = await bcrypt.compare(password, user.password_hash);
       if (!isMatch) {
-        return res.status(401).json({ error: 'Credenciais inválidas. Verifique o e-mail e a senha.' });
+        return res.status(401).json({ error: 'Credenciais inválidas. Verifique o usuário e a senha.' });
       }
 
       // Atualizar last_login
@@ -252,14 +261,20 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       });
     } else {
       // Fallback
-      const user = fallbackUsers.find(u => u.email.toLowerCase() === cleanEmail);
+      const user = fallbackUsers.find(u => 
+        u.email.toLowerCase() === userInput || 
+        u.email.toLowerCase() === cleanEmail ||
+        u.email.toLowerCase().split('@')[0] === userInput ||
+        (u.badge && u.badge.toLowerCase() === userInput)
+      );
+
       if (!user) {
-        return res.status(401).json({ error: 'Credenciais inválidas. Verifique o e-mail e a senha.' });
+        return res.status(401).json({ error: 'Credenciais inválidas. Verifique o usuário e a senha.' });
       }
 
       const isMatch = await bcrypt.compare(password, user.password_hash);
       if (!isMatch) {
-        return res.status(401).json({ error: 'Credenciais inválidas. Verifique o e-mail e a senha.' });
+        return res.status(401).json({ error: 'Credenciais inválidas. Verifique o usuário e a senha.' });
       }
 
       user.last_login = new Date().toISOString();
