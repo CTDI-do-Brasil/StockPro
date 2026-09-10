@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { pool, getDbStatus } from '../db';
-import { authenticateToken, fallbackUsers, normalizeDepartments } from './auth';
+import { authenticateToken, fallbackUsers, normalizeDepartments, saveFallbackUsers } from './auth';
 
 export const usersRouter = Router();
 
@@ -109,6 +109,7 @@ usersRouter.post('/', authenticateToken, async (req: any, res: Response) => {
         last_login: new Date().toISOString()
       };
       fallbackUsers.push(newUser);
+      saveFallbackUsers();
 
       return res.status(201).json({
         message: 'Usuário criado com sucesso!',
@@ -182,6 +183,7 @@ usersRouter.put('/:id', authenticateToken, async (req: any, res: Response) => {
       u.phone = phone || '';
       if (isActive !== undefined) u.is_active = Boolean(isActive);
       u.updated_at = new Date().toISOString();
+      saveFallbackUsers();
 
       return res.json({
         message: 'Dados do usuário atualizados com sucesso!',
@@ -216,6 +218,7 @@ usersRouter.patch('/:id/toggle-status', authenticateToken, async (req: any, res:
       }
       user.is_active = isActive !== undefined ? Boolean(isActive) : !user.is_active;
       user.updated_at = new Date().toISOString();
+      saveFallbackUsers();
       return res.json({ message: `Status do usuário atualizado para ${user.is_active ? 'Ativo' : 'Inativo'}.` });
     }
   } catch (error: any) {
@@ -254,6 +257,7 @@ usersRouter.patch('/:id/reset-password', authenticateToken, async (req: any, res
       }
       user.password_hash = passwordHash;
       user.updated_at = new Date().toISOString();
+      saveFallbackUsers();
       return res.json({ message: `Senha do usuário ${user.name} redefinida com sucesso!` });
     }
   } catch (error: any) {
@@ -279,6 +283,7 @@ usersRouter.delete('/:id', authenticateToken, async (req: any, res: Response) =>
         return res.status(404).json({ error: 'Usuário não encontrado.' });
       }
       const deleted = fallbackUsers.splice(index, 1)[0];
+      saveFallbackUsers();
       return res.json({ message: `Usuário ${deleted.name} excluído com sucesso.` });
     }
   } catch (error: any) {

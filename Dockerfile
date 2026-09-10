@@ -23,12 +23,23 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=80
 
+# Configurações padrão para conexão com PostgreSQL no CapRover
+ENV DATABASE_URL=postgresql://postgres:postgres@srv-captain--db-postgres:5432/StockPro
+ENV PGHOST=srv-captain--db-postgres
+ENV PGPORT=5432
+ENV PGUSER=postgres
+ENV PGPASSWORD=postgres
+ENV PGDATABASE=StockPro
+
 COPY package*.json ./
 # Instala dependências de produção e tsx para executar o backend TypeScript
 RUN npm ci --omit=dev && npm install -g tsx
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server ./server
+
+# Diretório para persistência local de fallback
+RUN mkdir -p /app/data
 
 # CapRover encaminha para a porta 80 por padrão
 EXPOSE 80

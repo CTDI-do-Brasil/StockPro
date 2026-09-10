@@ -1,7 +1,13 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { pool, getDbStatus } from '../db';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const authRouter = Router();
 
@@ -10,51 +16,98 @@ const JWT_SECRET = process.env.JWT_SECRET || 'chave_secreta_estoque_ti_eng_manut
 // Senha padrão '123456' com hash bcrypt para os usuários de demonstração/offline
 const defaultHash = bcrypt.hashSync('123456', 10);
 
-// Usuários padrão carregados em memória caso o PostgreSQL esteja offline
-export const fallbackUsers: any[] = [
-  {
-    id: 'usr-admin-01',
-    name: 'Administrador TI',
-    email: 'admin@ctdi.com',
-    password_hash: defaultHash,
-    department: 'TI',
-    role: 'ADMIN',
-    badge: 'TI-001',
-    phone: '(11) 98765-4321',
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    last_login: new Date().toISOString(),
-  },
-  {
-    id: 'usr-eng-02',
-    name: 'Gestor de Engenharia',
-    email: 'engenharia@ctdi.com',
-    password_hash: defaultHash,
-    department: 'ENGENHARIA',
-    role: 'GERENTE',
-    badge: 'ENG-002',
-    phone: '(11) 98765-1111',
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    last_login: new Date().toISOString(),
-  },
-  {
-    id: 'usr-manut-03',
-    name: 'Técnico de Manutenção',
-    email: 'manutencao@ctdi.com',
-    password_hash: defaultHash,
-    department: 'MANUTENCAO',
-    role: 'TECNICO',
-    badge: 'MAN-003',
-    phone: '(11) 98765-2222',
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    last_login: new Date().toISOString(),
+const DATA_DIR = path.join(__dirname, '../../data');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) {
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    } catch (e) {}
   }
-];
+}
+
+export function saveFallbackUsers() {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(USERS_FILE, JSON.stringify(fallbackUsers, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Erro ao salvar usuários offline em arquivo:', err);
+  }
+}
+
+function loadInitialUsers(): any[] {
+  try {
+    ensureDataDir();
+    if (fs.existsSync(USERS_FILE)) {
+      const content = fs.readFileSync(USERS_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao carregar usuários persistidos:', err);
+  }
+
+  const initial = [
+    {
+      id: 'usr-admin-01',
+      name: 'Administrador TI',
+      email: 'admin@ctdi.com',
+      password_hash: defaultHash,
+      department: 'TI',
+      departments: ['TI'],
+      role: 'ADMIN',
+      badge: 'TI-001',
+      phone: '(11) 98765-4321',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_login: new Date().toISOString(),
+    },
+    {
+      id: 'usr-eng-02',
+      name: 'Gestor de Engenharia',
+      email: 'engenharia@ctdi.com',
+      password_hash: defaultHash,
+      department: 'ENGENHARIA',
+      departments: ['ENGENHARIA'],
+      role: 'GERENTE',
+      badge: 'ENG-002',
+      phone: '(11) 98765-1111',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_login: new Date().toISOString(),
+    },
+    {
+      id: 'usr-manut-03',
+      name: 'Técnico de Manutenção',
+      email: 'manutencao@ctdi.com',
+      password_hash: defaultHash,
+      department: 'MANUTENCAO',
+      departments: ['MANUTENCAO'],
+      role: 'TECNICO',
+      badge: 'MAN-003',
+      phone: '(11) 98765-2222',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_login: new Date().toISOString(),
+    }
+  ];
+
+  try {
+    ensureDataDir();
+    fs.writeFileSync(USERS_FILE, JSON.stringify(initial, null, 2), 'utf-8');
+  } catch (e) {}
+
+  return initial;
+}
+
+// Usuários persistidos em arquivo caso o PostgreSQL esteja temporariamente offline
+export const fallbackUsers: any[] = loadInitialUsers();
 
 // Helper para normalizar e validar múltiplos departamentos
 export function normalizeDepartments(rawDept: any, rawDepts?: any): { primary: string; joined: string; list: string[] } {
@@ -236,6 +289,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
         last_login: new Date().toISOString(),
       };
       fallbackUsers.push(newUser);
+      saveFallbackUsers();
 
       const token = generateToken(newUser);
       return res.status(201).json({
@@ -419,6 +473,7 @@ authRouter.put('/update-profile', authenticateToken, async (req: any, res: Respo
       if (phone !== undefined) user.phone = phone;
       if (avatar !== undefined) user.avatar = avatar;
       user.updated_at = new Date().toISOString();
+      saveFallbackUsers();
 
       const token = generateToken(user);
 
