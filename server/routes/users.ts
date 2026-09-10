@@ -106,7 +106,46 @@ usersRouter.post('/', authenticateToken, async (req: any, res: Response) => {
         }
       });
     } else {
-      return res.status(503).json({ error: 'Banco de dados PostgreSQL indisponível para criação de usuário.' });
+      // Fallback em memória (Offline)
+      const existing = fallbackUsers.find(u => u.email.toLowerCase() === cleanEmail);
+      if (existing) {
+        return res.status(400).json({ error: 'Já existe um usuário com este e-mail.' });
+      }
+
+      const newUser = {
+        id: userId,
+        name: name.trim(),
+        email: cleanEmail,
+        password_hash: passwordHash,
+        department: userDept,
+        role: userRole,
+        badge: badge || '',
+        phone: phone || '',
+        avatar: '',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_login: new Date().toISOString()
+      };
+      fallbackUsers.push(newUser);
+
+      return res.status(201).json({
+        message: 'Usuário criado com sucesso!',
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          department: newUser.department,
+          role: newUser.role,
+          badge: newUser.badge,
+          phone: newUser.phone,
+          avatar: newUser.avatar,
+          isActive: newUser.is_active,
+          createdAt: newUser.created_at,
+          updatedAt: newUser.updated_at,
+          lastLogin: newUser.last_login
+        }
+      });
     }
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao criar usuário: ' + error.message });
@@ -167,10 +206,77 @@ usersRouter.put('/:id', authenticateToken, async (req: any, res: Response) => {
         }
       });
     } else {
-      return res.status(503).json({ error: 'Banco de dados PostgreSQL indisponível.' });
+      // Fallback em memória (Offline)
+      const userIndex = fallbackUsers.findIndex(u => u.id === targetUserId);
+      if (userIndex === -1) {
+        return res.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+
+      const duplicate = fallbackUsers.find(u => u.email.toLowerCase() === cleanEmail && u.id !== targetUserId);
+      if (duplicate) {
+        return res.status(400).json({ error: 'Este e-mail já está sendo utilizado por outro usuário.' });
+      }
+
+      const u = fallbackUsers[userIndex];
+      u.name = name.trim();
+      u.email = cleanEmail;
+      u.department = userDept;
+      u.role = userRole;
+      u.badge = badge || '';
+      u.phone = phone || '';
+      if (isActive !== undefined) u.is_active = Boolean(isActive);
+      u.updated_at = new Date().toISOString();
+
+      return res.json({
+        message: 'Dados do usuário atualizados com sucesso!',
+        user: {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          department: u.department,
+          role: u.role,
+          badge: u.badge,
+          phone: u.phone,
+          avatar: u.avatar,
+          isActive: u.is_active,
+          createdAt: u.created_at,
+          updatedAt: u.updated_at,
+          lastLogin: u.last_login
+        }
+      });
     }
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao atualizar usuário: ' + error.message });
+  }
+});
+
+// PATCH: Alternar status ativo/inativo
+usersRouter.patch('/:id/toggle-status', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const targetUserId = req.params.id;
+    const { isActive } = req.body;
+    const dbStatus = getDbStatus();
+
+    if (dbStatus.connected) {
+      const result = await pool.query(
+        'UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, is_active',
+        [isActive, targetUserId]
+      );
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+      return res.json({ message: `Status do usuário atualizado para ${isActive ? 'Ativo' : 'Inativo'}.` });
+    } else {
+      const user = fallbackUsers.find(u => u.id === targetUserId);
+      if (!user) {
+        return res.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+      user.is_active = isActive !== undefined ? Boolean(isActive) : !user.is_active;
+      user.updated_at = new Date().toISOString();
+      return res.json({ message: `Status do usuário atualizado para ${user.is_active ? 'Ativo' : 'Inativo'}.` });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: 'Erro ao alterar status: ' + error.message });
   }
 });
 
@@ -185,8 +291,9 @@ usersRouter.patch('/:id/reset-password', authenticateToken, async (req: any, res
       return res.status(400).json({ error: 'A nova senha deve conter pelo menos 4 caracteres.' });
     }
 
+    const passwordHash = await bcrypt.hash(newPassword.trim(), 10);
+
     if (dbStatus.connected) {
-      const passwordHash = await bcrypt.hash(newPassword.trim(), 10);
       const result = await pool.query(
         'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, email',
         [passwordHash, targetUserId]
@@ -198,7 +305,13 @@ usersRouter.patch('/:id/reset-password', authenticateToken, async (req: any, res
 
       return res.json({ message: `Senha do usuário ${result.rows[0].name} redefinida com sucesso!` });
     } else {
-      return res.status(503).json({ error: 'Banco de dados PostgreSQL indisponível.' });
+      const user = fallbackUsers.find(u => u.id === targetUserId);
+      if (!user) {
+        return res.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+      user.password_hash = passwordHash;
+      user.updated_at = new Date().toISOString();
+      return res.json({ message: `Senha do usuário ${user.name} redefinida com sucesso!` });
     }
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao redefinir senha: ' + error.message });
@@ -218,7 +331,12 @@ usersRouter.delete('/:id', authenticateToken, async (req: any, res: Response) =>
       }
       return res.json({ message: `Usuário ${result.rows[0].name} excluído com sucesso.` });
     } else {
-      return res.status(503).json({ error: 'Banco de dados PostgreSQL indisponível.' });
+      const index = fallbackUsers.findIndex(u => u.id === targetUserId);
+      if (index === -1) {
+        return res.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+      const deleted = fallbackUsers.splice(index, 1)[0];
+      return res.json({ message: `Usuário ${deleted.name} excluído com sucesso.` });
     }
   } catch (error: any) {
     res.status(500).json({ error: 'Erro ao excluir usuário: ' + error.message });
