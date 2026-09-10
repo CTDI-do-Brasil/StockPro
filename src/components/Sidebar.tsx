@@ -264,8 +264,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="text-xs font-bold text-slate-900 truncate">
                       {user.name}
                     </div>
-                    <div className="text-[10px] text-slate-500 truncate">
-                      {user.department} • {user.role}
+                    <div className="text-[10px] text-slate-500 truncate" title={user.departments ? user.departments.join(', ') : user.department}>
+                      {(user.departments && user.departments.length > 0 ? user.departments.join(', ') : user.department)} • {user.role}
                     </div>
                   </div>
                 </div>

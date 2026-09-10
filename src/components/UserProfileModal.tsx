@@ -24,8 +24,14 @@ interface UserProfileModalProps {
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) => {
   const { user, updateProfile, dbStatus } = useAuth();
 
+  const initialDepts: Department[] = (user?.departments && user.departments.length > 0)
+    ? user.departments
+    : (user?.department 
+        ? (user.department.split(',').map(d => d.trim().toUpperCase() as Department).filter(d => ['TI', 'ENGENHARIA', 'MANUTENCAO'].includes(d)))
+        : ['TI'] as Department[]);
+
   const [name, setName] = useState(user?.name || '');
-  const [department, setDepartment] = useState<Department>(user?.department || 'TI');
+  const [departments, setDepartments] = useState<Department[]>(initialDepts.length > 0 ? initialDepts : ['TI']);
   const [role, setRole] = useState<UserRole>(user?.role || 'OPERADOR');
   const [badge, setBadge] = useState(user?.badge || '');
   const [phone, setPhone] = useState(user?.phone || '');
@@ -36,6 +42,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
 
   if (!isOpen || !user) return null;
 
+  const toggleDept = (dept: Department) => {
+    setDepartments(prev => {
+      const exists = prev.includes(dept);
+      if (exists) {
+        if (prev.length === 1) return prev;
+        return prev.filter(d => d !== dept);
+      }
+      return [...prev, dept];
+    });
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -43,7 +60,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
 
     const result = await updateProfile({
       name,
-      department,
+      department: departments[0] || 'TI',
+      departments,
       role,
       badge,
       phone,
@@ -135,38 +153,61 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
             </div>
           </div>
 
-          {/* Departamento e Cargo */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Departamento
+          {/* Departamentos Habilitados */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-slate-700">
+                Departamentos Habilitados *
               </label>
-              <select
-                value={department}
-                onChange={(e) => setDepartment(e.target.value as Department)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
-              >
-                <option value="TI">TI</option>
-                <option value="ENGENHARIA">Engenharia</option>
-                <option value="MANUTENCAO">Manutenção</option>
-              </select>
+              <span className="text-[10px] text-slate-400 font-medium">
+                (Selecione um ou mais)
+              </span>
             </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'TI' as Department, label: 'TI' },
+                { id: 'ENGENHARIA' as Department, label: 'Engenharia' },
+                { id: 'MANUTENCAO' as Department, label: 'Manutenção' },
+              ].map(dept => {
+                const isSelected = departments.includes(dept.id);
+                return (
+                  <button
+                    key={dept.id}
+                    type="button"
+                    onClick={() => toggleDept(dept.id)}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      isSelected
+                        ? dept.id === 'TI'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-600/20'
+                          : dept.id === 'ENGENHARIA'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-600/20'
+                          : 'bg-amber-600 text-white border-amber-600 shadow-xs ring-2 ring-amber-600/20'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />}
+                    <span>{dept.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Função / Cargo
-              </label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-600"
-              >
-                <option value="OPERADOR">Operador</option>
-                <option value="TECNICO">Técnico</option>
-                <option value="GERENTE">Gerente</option>
-                <option value="ADMIN">Administrador</option>
-              </select>
-            </div>
+          {/* Função / Cargo */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Função / Cargo
+            </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as UserRole)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium"
+            >
+              <option value="OPERADOR">Operador</option>
+              <option value="TECNICO">Técnico</option>
+              <option value="GERENTE">Gerente</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
           </div>
 
           {/* Matrícula e Telefone */}

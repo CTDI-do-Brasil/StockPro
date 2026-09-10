@@ -171,6 +171,7 @@ export interface User {
   name: string;
   email: string;
   department: Department;
+  departments?: Department[];
   role: UserRole;
   badge?: string;
   phone?: string;
@@ -199,6 +200,7 @@ export interface RegisterData {
   email: string;
   password: string;
   department: Department;
+  departments?: Department[];
   role: UserRole;
   badge?: string;
   phone?: string;

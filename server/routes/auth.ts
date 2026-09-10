@@ -56,14 +56,47 @@ export const fallbackUsers: any[] = [
   }
 ];
 
+// Helper para normalizar e validar múltiplos departamentos
+export function normalizeDepartments(rawDept: any, rawDepts?: any): { primary: string; joined: string; list: string[] } {
+  const valid = ['TI', 'ENGENHARIA', 'MANUTENCAO'];
+  let list: string[] = [];
+
+  if (Array.isArray(rawDepts)) {
+    list = rawDepts
+      .map((d: any) => String(d).trim().toUpperCase())
+      .filter((d: string) => valid.includes(d));
+  }
+
+  if (list.length === 0 && rawDept) {
+    list = String(rawDept)
+      .split(',')
+      .map((d: string) => d.trim().toUpperCase())
+      .filter((d: string) => valid.includes(d));
+  }
+
+  if (list.length === 0) {
+    list = ['TI'];
+  }
+
+  list = Array.from(new Set(list));
+
+  return {
+    primary: list[0],
+    joined: list.join(', '),
+    list
+  };
+}
+
 // Helper para gerar token JWT
 function generateToken(user: any) {
+  const depts = normalizeDepartments(user.department, user.departments);
   return jwt.sign(
     {
       id: user.id,
       email: user.email,
       name: user.name,
-      department: user.department,
+      department: depts.primary,
+      departments: depts.list,
       role: user.role,
     },
     JWT_SECRET,
@@ -72,20 +105,22 @@ function generateToken(user: any) {
 }
 
 // Helper para formatar usuário sem expor senha
-function sanitizeUser(user: any) {
+export function sanitizeUser(user: any) {
+  const depts = normalizeDepartments(user.department, user.departments);
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    department: user.department,
+    department: depts.primary,
+    departments: depts.list,
     role: user.role,
     badge: user.badge || '',
     phone: user.phone || '',
     avatar: user.avatar || '',
-    isActive: user.is_active ?? true,
-    createdAt: user.created_at,
-    updatedAt: user.updated_at,
-    lastLogin: user.last_login,
+    isActive: user.is_active ?? (user.isActive ?? true),
+    createdAt: user.created_at || user.createdAt,
+    updatedAt: user.updated_at || user.updatedAt,
+    lastLogin: user.last_login || user.lastLogin,
   };
 }
 
@@ -122,6 +157,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     const rawName = (req.body.name || '').trim();
     const password = req.body.password;
     const department = req.body.department;
+    const departments = req.body.departments;
     const role = req.body.role;
     const badge = req.body.badge;
     const phone = req.body.phone;
@@ -136,7 +172,8 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
     const userId = `usr-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-    const userDept = department || 'TI';
+    const parsedDepts = normalizeDepartments(department, departments);
+    const userDept = parsedDepts.joined;
     const userRole = role || 'OPERADOR';
 
     if (dbStatus.connected) {
@@ -334,8 +371,13 @@ authRouter.get('/me', authenticateToken, async (req: any, res: Response) => {
 authRouter.put('/update-profile', authenticateToken, async (req: any, res: Response) => {
   try {
     const userId = req.user.id;
-    const { name, department, role, badge, phone, avatar } = req.body;
+    const { name, department, departments, role, badge, phone, avatar } = req.body;
     const dbStatus = getDbStatus();
+
+    const depts = (department !== undefined || departments !== undefined) 
+      ? normalizeDepartments(department, departments) 
+      : null;
+    const deptToSave = depts ? depts.joined : null;
 
     if (dbStatus.connected) {
       const result = await pool.query(
@@ -349,7 +391,7 @@ authRouter.put('/update-profile', authenticateToken, async (req: any, res: Respo
              updated_at = NOW()
          WHERE id = $7
          RETURNING *`,
-        [name, department, role, badge, phone, avatar, userId]
+        [name, deptToSave, role, badge, phone, avatar, userId]
       );
 
       if (result.rows.length === 0) {
@@ -371,7 +413,7 @@ authRouter.put('/update-profile', authenticateToken, async (req: any, res: Respo
       }
 
       if (name) user.name = name;
-      if (department) user.department = department;
+      if (deptToSave) user.department = deptToSave;
       if (role) user.role = role;
       if (badge !== undefined) user.badge = badge;
       if (phone !== undefined) user.phone = phone;

@@ -29,6 +29,12 @@ interface UsersManagementModalProps {
   onClose: () => void;
 }
 
+const ALL_DEPARTMENTS: { id: Department; label: string; bgBadge: string; textBadge: string; borderBadge: string }[] = [
+  { id: 'TI', label: 'TI', bgBadge: 'bg-blue-50', textBadge: 'text-blue-700', borderBadge: 'border-blue-200' },
+  { id: 'ENGENHARIA', label: 'Engenharia', bgBadge: 'bg-emerald-50', textBadge: 'text-emerald-700', borderBadge: 'border-emerald-200' },
+  { id: 'MANUTENCAO', label: 'Manutenção', bgBadge: 'bg-amber-50', textBadge: 'text-amber-700', borderBadge: 'border-amber-200' },
+];
+
 export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOpen, onClose }) => {
   const { token, user: currentUser } = useAuth();
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -53,6 +59,7 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
     email: '',
     password: '',
     department: 'TI' as Department,
+    departments: ['TI'] as Department[],
     role: 'OPERADOR' as UserRole,
     badge: '',
     phone: '',
@@ -63,6 +70,7 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
     name: '',
     email: '',
     department: 'TI' as Department,
+    departments: ['TI'] as Department[],
     role: 'OPERADOR' as UserRole,
     badge: '',
     phone: '',
@@ -73,6 +81,42 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  const toggleCreateDept = (dept: Department) => {
+    setCreateForm(prev => {
+      const exists = prev.departments.includes(dept);
+      let next: Department[];
+      if (exists) {
+        if (prev.departments.length === 1) return prev; // Mantém ao menos um departamento
+        next = prev.departments.filter(d => d !== dept);
+      } else {
+        next = [...prev.departments, dept];
+      }
+      return {
+        ...prev,
+        departments: next,
+        department: next[0] || 'TI'
+      };
+    });
+  };
+
+  const toggleEditDept = (dept: Department) => {
+    setEditForm(prev => {
+      const exists = prev.departments.includes(dept);
+      let next: Department[];
+      if (exists) {
+        if (prev.departments.length === 1) return prev; // Mantém ao menos um departamento
+        next = prev.departments.filter(d => d !== dept);
+      } else {
+        next = [...prev.departments, dept];
+      }
+      return {
+        ...prev,
+        departments: next,
+        department: next[0] || 'TI'
+      };
+    });
+  };
 
   // Carregar lista de usuários
   const fetchUsers = async () => {
@@ -142,6 +186,7 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
       email: '',
       password: '',
       department: 'TI',
+      departments: ['TI'],
       role: 'OPERADOR',
       badge: '',
       phone: '',
@@ -158,6 +203,11 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
       return;
     }
 
+    if (!createForm.departments || createForm.departments.length === 0) {
+      showNotification('error', 'Selecione pelo menos um departamento.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const res = await fetch('/api/users', {
@@ -166,7 +216,10 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(createForm),
+        body: JSON.stringify({
+          ...createForm,
+          department: createForm.departments.join(', ')
+        }),
       });
 
       const data = await res.json();
@@ -187,10 +240,18 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
   // 2. AJUSTAR USUÁRIO
   const handleOpenEdit = (user: User) => {
     setSelectedUser(user);
+    const userDepts = (user.departments && user.departments.length > 0)
+      ? user.departments
+      : (user.department 
+          ? (user.department.split(',').map(d => d.trim().toUpperCase() as Department).filter(d => ['TI', 'ENGENHARIA', 'MANUTENCAO'].includes(d)))
+          : ['TI'] as Department[]);
+    const finalDepts = userDepts.length > 0 ? userDepts : (['TI'] as Department[]);
+
     setEditForm({
       name: user.name,
       email: user.email,
-      department: user.department,
+      department: finalDepts[0],
+      departments: finalDepts,
       role: user.role,
       badge: user.badge || '',
       phone: user.phone || '',
@@ -208,6 +269,11 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
       return;
     }
 
+    if (!editForm.departments || editForm.departments.length === 0) {
+      showNotification('error', 'Selecione pelo menos um departamento.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const res = await fetch(`/api/users/${selectedUser.id}`, {
@@ -216,7 +282,10 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify({
+          ...editForm,
+          department: editForm.departments.join(', ')
+        }),
       });
 
       const data = await res.json();
@@ -327,7 +396,11 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.badge && u.badge.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesDept = selectedDeptFilter === 'TODOS' || u.department === selectedDeptFilter;
+    const userDepts = (u.departments && u.departments.length > 0)
+      ? u.departments
+      : (u.department ? u.department.split(',').map(d => d.trim().toUpperCase()) : ['TI']);
+
+    const matchesDept = selectedDeptFilter === 'TODOS' || userDepts.includes(selectedDeptFilter);
     return matchesSearch && matchesDept;
   });
 
@@ -439,55 +512,72 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
               Nenhum usuário encontrado com os filtros selecionados.
             </div>
           ) : (
-            filteredUsers.map((u) => (
-              <div
-                key={u.id}
-                className={`p-3.5 rounded-xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-3 ${
-                  u.isActive 
-                    ? 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs' 
-                    : 'bg-slate-50/70 border-slate-200 opacity-60'
-                }`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm text-white shadow-xs shrink-0 ${
-                    u.department === 'TI' ? 'bg-blue-600' : u.department === 'ENGENHARIA' ? 'bg-emerald-600' : 'bg-amber-600'
-                  }`}>
-                    {u.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-bold text-slate-900 truncate">{u.name}</span>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
-                        u.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' :
-                        u.role === 'GERENTE' ? 'bg-blue-100 text-blue-800' :
-                        u.role === 'TECNICO' ? 'bg-emerald-100 text-emerald-800' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>
-                        {u.role}
-                      </span>
-                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
-                        {u.department}
-                      </span>
-                      {u.badge && (
-                        <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
-                          Crachá: {u.badge}
-                        </span>
-                      )}
+            filteredUsers.map((u) => {
+              const uDepts: Department[] = (u.departments && u.departments.length > 0)
+                ? u.departments
+                : (u.department 
+                    ? (u.department.split(',').map(d => d.trim().toUpperCase() as Department).filter(d => ['TI', 'ENGENHARIA', 'MANUTENCAO'].includes(d)))
+                    : ['TI'] as Department[]);
+              const primaryDept = uDepts[0] || 'TI';
+
+              return (
+                <div
+                  key={u.id}
+                  className={`p-3.5 rounded-xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-3 ${
+                    u.isActive 
+                      ? 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs' 
+                      : 'bg-slate-50/70 border-slate-200 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm text-white shadow-xs shrink-0 ${
+                      primaryDept === 'TI' ? 'bg-blue-600' : primaryDept === 'ENGENHARIA' ? 'bg-emerald-600' : 'bg-amber-600'
+                    }`}>
+                      {u.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mt-1">
-                      <span className="flex items-center gap-1">
-                        <Mail className="w-3 h-3 text-slate-400" />
-                        {u.email}
-                      </span>
-                      {u.phone && (
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-900 truncate mr-1">{u.name}</span>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                          u.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' :
+                          u.role === 'GERENTE' ? 'bg-blue-100 text-blue-800' :
+                          u.role === 'TECNICO' ? 'bg-emerald-100 text-emerald-800' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {u.role}
+                        </span>
+                        {uDepts.map(dept => (
+                          <span
+                            key={dept}
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                              dept === 'TI' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                              dept === 'ENGENHARIA' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
+                          >
+                            {dept}
+                          </span>
+                        ))}
+                        {u.badge && (
+                          <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
+                            Crachá: {u.badge}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mt-1">
                         <span className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-slate-400" />
-                          {u.phone}
+                          <Mail className="w-3 h-3 text-slate-400" />
+                          {u.email}
                         </span>
-                      )}
+                        {u.phone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-slate-400" />
+                            {u.phone}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
                 {/* Ações por Usuário */}
                 <div className="flex items-center gap-1.5 self-end md:self-center shrink-0">
@@ -552,9 +642,10 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
                   </button>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            );
+          })
+        )}
+      </div>
 
         {/* Rodapé */}
         <div className="p-4 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between text-[11px] text-slate-500 shrink-0">
@@ -627,33 +718,54 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Departamento *</label>
-                    <select
-                      value={createForm.department}
-                      onChange={(e) => setCreateForm({ ...createForm, department: e.target.value as Department })}
-                      className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600"
-                    >
-                      <option value="TI">TI</option>
-                      <option value="ENGENHARIA">Engenharia</option>
-                      <option value="MANUTENCAO">Manutenção</option>
-                    </select>
+                {/* Departamentos com Seleção Múltipla */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Departamentos Habilitados *
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      (Selecione um ou mais)
+                    </span>
                   </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {ALL_DEPARTMENTS.map(dept => {
+                      const isSelected = createForm.departments.includes(dept.id);
+                      return (
+                        <button
+                          key={dept.id}
+                          type="button"
+                          onClick={() => toggleCreateDept(dept.id)}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            isSelected
+                              ? dept.id === 'TI'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-600/20'
+                                : dept.id === 'ENGENHARIA'
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-600/20'
+                                : 'bg-amber-600 text-white border-amber-600 shadow-xs ring-2 ring-amber-600/20'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {isSelected && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />}
+                          <span>{dept.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Perfil / Cargo *</label>
-                    <select
-                      value={createForm.role}
-                      onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as UserRole })}
-                      className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600"
-                    >
-                      <option value="OPERADOR">OPERADOR</option>
-                      <option value="TECNICO">TECNICO</option>
-                      <option value="GERENTE">GERENTE</option>
-                      <option value="ADMIN">ADMIN</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Perfil / Cargo *</label>
+                  <select
+                    value={createForm.role}
+                    onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as UserRole })}
+                    className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 font-medium"
+                  >
+                    <option value="OPERADOR">OPERADOR</option>
+                    <option value="TECNICO">TECNICO</option>
+                    <option value="GERENTE">GERENTE</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -746,33 +858,54 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({ isOp
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Departamento *</label>
-                    <select
-                      value={editForm.department}
-                      onChange={(e) => setEditForm({ ...editForm, department: e.target.value as Department })}
-                      className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600"
-                    >
-                      <option value="TI">TI</option>
-                      <option value="ENGENHARIA">Engenharia</option>
-                      <option value="MANUTENCAO">Manutenção</option>
-                    </select>
+                {/* Departamentos com Seleção Múltipla */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Departamentos Habilitados *
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      (Selecione um ou mais)
+                    </span>
                   </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {ALL_DEPARTMENTS.map(dept => {
+                      const isSelected = editForm.departments.includes(dept.id);
+                      return (
+                        <button
+                          key={dept.id}
+                          type="button"
+                          onClick={() => toggleEditDept(dept.id)}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            isSelected
+                              ? dept.id === 'TI'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-600/20'
+                                : dept.id === 'ENGENHARIA'
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-600/20'
+                                : 'bg-amber-600 text-white border-amber-600 shadow-xs ring-2 ring-amber-600/20'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {isSelected && <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />}
+                          <span>{dept.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Perfil / Cargo *</label>
-                    <select
-                      value={editForm.role}
-                      onChange={(e) => setEditForm({ ...editForm, role: e.target.value as UserRole })}
-                      className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600"
-                    >
-                      <option value="OPERADOR">OPERADOR</option>
-                      <option value="TECNICO">TECNICO</option>
-                      <option value="GERENTE">GERENTE</option>
-                      <option value="ADMIN">ADMIN</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Perfil / Cargo *</label>
+                  <select
+                    value={editForm.role}
+                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value as UserRole })}
+                    className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 font-medium"
+                  >
+                    <option value="OPERADOR">OPERADOR</option>
+                    <option value="TECNICO">TECNICO</option>
+                    <option value="GERENTE">GERENTE</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

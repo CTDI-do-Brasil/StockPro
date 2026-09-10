@@ -1,9 +1,28 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { pool, getDbStatus } from '../db';
-import { authenticateToken, fallbackUsers } from './auth';
+import { authenticateToken, fallbackUsers, normalizeDepartments } from './auth';
 
 export const usersRouter = Router();
+
+function formatUser(u: any) {
+  const depts = normalizeDepartments(u.department, u.departments);
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    department: depts.primary,
+    departments: depts.list,
+    role: u.role,
+    badge: u.badge || '',
+    phone: u.phone || '',
+    avatar: u.avatar || '',
+    isActive: u.is_active ?? (u.isActive ?? true),
+    createdAt: u.created_at || u.createdAt,
+    updatedAt: u.updated_at || u.updatedAt,
+    lastLogin: u.last_login || u.lastLogin,
+  };
+}
 
 // GET: Listar todos os usuários cadastrados
 usersRouter.get('/', authenticateToken, async (req: any, res: Response) => {
@@ -16,39 +35,13 @@ usersRouter.get('/', authenticateToken, async (req: any, res: Response) => {
          FROM users ORDER BY created_at DESC`
       );
       return res.json({
-        users: result.rows.map(u => ({
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          department: u.department,
-          role: u.role,
-          badge: u.badge || '',
-          phone: u.phone || '',
-          avatar: u.avatar || '',
-          isActive: u.is_active,
-          createdAt: u.created_at,
-          updatedAt: u.updated_at,
-          lastLogin: u.last_login,
-        })),
+        users: result.rows.map(formatUser),
         source: 'PostgreSQL'
       });
     } else {
       // Retornar usuários em memória caso o PostgreSQL esteja offline
       return res.json({
-        users: fallbackUsers.map(u => ({
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          department: u.department,
-          role: u.role,
-          badge: u.badge || '',
-          phone: u.phone || '',
-          avatar: u.avatar || '',
-          isActive: u.is_active ?? true,
-          createdAt: u.created_at,
-          updatedAt: u.updated_at,
-          lastLogin: u.last_login,
-        })),
+        users: fallbackUsers.map(formatUser),
         source: 'Memória (Offline)'
       });
     }
@@ -60,7 +53,7 @@ usersRouter.get('/', authenticateToken, async (req: any, res: Response) => {
 // POST: Criar novo usuário (Admin/Gestão)
 usersRouter.post('/', authenticateToken, async (req: any, res: Response) => {
   try {
-    const { name, email, password, department, role, badge, phone } = req.body;
+    const { name, email, password, department, departments, role, badge, phone } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Nome, e-mail e senha inicial são obrigatórios.' });
@@ -70,7 +63,8 @@ usersRouter.post('/', authenticateToken, async (req: any, res: Response) => {
     const dbStatus = getDbStatus();
     const userId = `usr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const passwordHash = await bcrypt.hash(password.trim(), 10);
-    const userDept = ['TI', 'ENGENHARIA', 'MANUTENCAO'].includes(department) ? department : 'TI';
+    const parsedDepts = normalizeDepartments(department, departments);
+    const userDept = parsedDepts.joined;
     const userRole = ['ADMIN', 'GERENTE', 'TECNICO', 'OPERADOR'].includes(role) ? role : 'OPERADOR';
 
     if (dbStatus.connected) {
@@ -90,20 +84,7 @@ usersRouter.post('/', authenticateToken, async (req: any, res: Response) => {
 
       return res.status(201).json({
         message: 'Usuário criado com sucesso!',
-        user: {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          department: u.department,
-          role: u.role,
-          badge: u.badge || '',
-          phone: u.phone || '',
-          avatar: u.avatar || '',
-          isActive: u.is_active,
-          createdAt: u.created_at,
-          updatedAt: u.updated_at,
-          lastLogin: u.last_login
-        }
+        user: formatUser(u)
       });
     } else {
       // Fallback em memória (Offline)
@@ -131,20 +112,7 @@ usersRouter.post('/', authenticateToken, async (req: any, res: Response) => {
 
       return res.status(201).json({
         message: 'Usuário criado com sucesso!',
-        user: {
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          department: newUser.department,
-          role: newUser.role,
-          badge: newUser.badge,
-          phone: newUser.phone,
-          avatar: newUser.avatar,
-          isActive: newUser.is_active,
-          createdAt: newUser.created_at,
-          updatedAt: newUser.updated_at,
-          lastLogin: newUser.last_login
-        }
+        user: formatUser(newUser)
       });
     }
   } catch (error: any) {
@@ -156,7 +124,7 @@ usersRouter.post('/', authenticateToken, async (req: any, res: Response) => {
 usersRouter.put('/:id', authenticateToken, async (req: any, res: Response) => {
   try {
     const targetUserId = req.params.id;
-    const { name, email, department, role, badge, phone, isActive } = req.body;
+    const { name, email, department, departments, role, badge, phone, isActive } = req.body;
     const dbStatus = getDbStatus();
 
     if (!name || !email) {
@@ -164,7 +132,8 @@ usersRouter.put('/:id', authenticateToken, async (req: any, res: Response) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const userDept = ['TI', 'ENGENHARIA', 'MANUTENCAO'].includes(department) ? department : 'TI';
+    const parsedDepts = normalizeDepartments(department, departments);
+    const userDept = parsedDepts.joined;
     const userRole = ['ADMIN', 'GERENTE', 'TECNICO', 'OPERADOR'].includes(role) ? role : 'OPERADOR';
 
     if (dbStatus.connected) {
@@ -190,20 +159,7 @@ usersRouter.put('/:id', authenticateToken, async (req: any, res: Response) => {
       const u = result.rows[0];
       return res.json({
         message: 'Dados do usuário atualizados com sucesso!',
-        user: {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          department: u.department,
-          role: u.role,
-          badge: u.badge || '',
-          phone: u.phone || '',
-          avatar: u.avatar || '',
-          isActive: u.is_active,
-          createdAt: u.created_at,
-          updatedAt: u.updated_at,
-          lastLogin: u.last_login
-        }
+        user: formatUser(u)
       });
     } else {
       // Fallback em memória (Offline)
@@ -229,20 +185,7 @@ usersRouter.put('/:id', authenticateToken, async (req: any, res: Response) => {
 
       return res.json({
         message: 'Dados do usuário atualizados com sucesso!',
-        user: {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          department: u.department,
-          role: u.role,
-          badge: u.badge,
-          phone: u.phone,
-          avatar: u.avatar,
-          isActive: u.is_active,
-          createdAt: u.created_at,
-          updatedAt: u.updated_at,
-          lastLogin: u.last_login
-        }
+        user: formatUser(u)
       });
     }
   } catch (error: any) {
