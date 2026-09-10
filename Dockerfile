@@ -35,6 +35,10 @@ COPY package*.json ./
 # Instala dependências de produção e tsx para executar o backend TypeScript
 RUN npm ci --omit=dev && npm install -g tsx
 
+# Invalida o cache do Docker para que os novos arquivos de build sejam sempre copiados
+ARG CAPROVER_GIT_COMMIT_SHA
+ENV APP_VERSION=${CAPROVER_GIT_COMMIT_SHA}
+
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server ./server
 
