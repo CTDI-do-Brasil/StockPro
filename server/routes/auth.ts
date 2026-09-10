@@ -118,13 +118,20 @@ export function authenticateToken(req: any, res: Response, next: Function) {
 // POST: Registrar novo usuário
 authRouter.post('/register', async (req: Request, res: Response) => {
   try {
-    const { name, email, password, department, role, badge, phone } = req.body;
+    const rawUser = (req.body.email || req.body.username || req.body.usuario || '').trim();
+    const rawName = (req.body.name || '').trim();
+    const password = req.body.password;
+    const department = req.body.department;
+    const role = req.body.role;
+    const badge = req.body.badge;
+    const phone = req.body.phone;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Nome, e-mail e senha são obrigatórios.' });
+    if (!rawUser || !password) {
+      return res.status(400).json({ error: 'Usuário/E-mail e senha são obrigatórios.' });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = rawUser.includes('@') ? rawUser.toLowerCase() : `${rawUser.toLowerCase()}@ctdi.com`;
+    const resolvedName = rawName || rawUser.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
     const dbStatus = getDbStatus();
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
@@ -134,9 +141,12 @@ authRouter.post('/register', async (req: Request, res: Response) => {
 
     if (dbStatus.connected) {
       // Verificar se já existe e-mail no Postgres
-      const existing = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [cleanEmail]);
+      const existing = await pool.query(
+        'SELECT id FROM users WHERE LOWER(email) = $1 OR LOWER(SPLIT_PART(email, \'@\', 1)) = $2',
+        [cleanEmail, rawUser.toLowerCase()]
+      );
       if (existing.rows.length > 0) {
-        return res.status(400).json({ error: 'Este e-mail já está cadastrado no sistema.' });
+        return res.status(400).json({ error: 'Este usuário/e-mail já está cadastrado no sistema.' });
       }
 
       const query = `
@@ -144,7 +154,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), NOW())
         RETURNING *
       `;
-      const values = [userId, name.trim(), cleanEmail, passwordHash, userDept, userRole, badge || '', phone || ''];
+      const values = [userId, resolvedName, cleanEmail, passwordHash, userDept, userRole, badge || '', phone || ''];
       const result = await pool.query(query, values);
       const newUser = result.rows[0];
 
@@ -159,21 +169,24 @@ authRouter.post('/register', async (req: Request, res: Response) => {
 
       const token = generateToken(newUser);
       return res.status(201).json({
-        message: 'Usuário cadastrado com sucesso no PostgreSQL!',
+        message: 'Usuário cadastrado com sucesso!',
         user: sanitizeUser(newUser),
         token,
         databaseSource: 'PostgreSQL',
       });
     } else {
       // Fallback
-      const existing = fallbackUsers.find(u => u.email.toLowerCase() === cleanEmail);
+      const existing = fallbackUsers.find(u => 
+        u.email.toLowerCase() === cleanEmail || 
+        u.email.toLowerCase().split('@')[0] === rawUser.toLowerCase()
+      );
       if (existing) {
-        return res.status(400).json({ error: 'Este e-mail já está cadastrado no sistema.' });
+        return res.status(400).json({ error: 'Este usuário/e-mail já está cadastrado no sistema.' });
       }
 
       const newUser = {
         id: userId,
-        name: name.trim(),
+        name: resolvedName,
         email: cleanEmail,
         password_hash: passwordHash,
         department: userDept,

@@ -93,6 +93,32 @@ export const LoginView: React.FC = () => {
           </p>
         </div>
 
+        {/* Alternador de Abas Discreto */}
+        <div className="flex bg-[#0c1322] p-1 rounded-2xl border border-[#222f46] mb-6">
+          <button
+            type="button"
+            onClick={() => { setMode('login'); setErrorMessage(null); setSuccessMessage(null); }}
+            className={`flex-1 py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
+              mode === 'login'
+                ? 'bg-[#2563eb] text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Entrar
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('register'); setErrorMessage(null); setSuccessMessage(null); }}
+            className={`flex-1 py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
+              mode === 'register'
+                ? 'bg-[#2563eb] text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Criar Conta
+          </button>
+        </div>
+
         {/* Mensagens de Alerta */}
         {errorMessage && (
           <div className="mb-5 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center gap-2">
@@ -166,7 +192,7 @@ export const LoginView: React.FC = () => {
                 onClick={() => { setMode('register'); setErrorMessage(null); }}
                 className="text-xs text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
               >
-                Não tem uma conta? <span className="text-blue-400 font-semibold">Criar conta</span>
+                Não tem um acesso? <span className="text-blue-400 font-semibold">Criar nova conta</span>
               </button>
             </div>
           </form>
@@ -177,28 +203,27 @@ export const LoginView: React.FC = () => {
           <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                Nome Completo
+                Usuário / Login *
               </label>
               <input
                 type="text"
                 required
-                value={regName}
-                onChange={(e) => setRegName(e.target.value)}
-                placeholder="Carlos Silva"
-                className="w-full bg-[#0c1322] border border-[#222f46] rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                value={regEmail}
+                onChange={(e) => setRegEmail(e.target.value)}
+                placeholder="Ex: CARLOS.SILVA ou carlos.silva@ctdi.com"
+                className="w-full bg-[#0c1322] border border-[#222f46] rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 uppercase"
               />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                E-mail Corporativo
+                Nome Completo (Opcional)
               </label>
               <input
-                type="email"
-                required
-                value={regEmail}
-                onChange={(e) => setRegEmail(e.target.value)}
-                placeholder="carlos.silva@ctdi.com"
+                type="text"
+                value={regName}
+                onChange={(e) => setRegName(e.target.value)}
+                placeholder="Ex: Carlos Silva"
                 className="w-full bg-[#0c1322] border border-[#222f46] rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -238,25 +263,38 @@ export const LoginView: React.FC = () => {
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                Senha
+                Senha *
               </label>
-              <input
-                type="password"
-                required
-                minLength={4}
-                value={regPassword}
-                onChange={(e) => setRegPassword(e.target.value)}
-                placeholder="Mínimo 4 caracteres"
-                className="w-full bg-[#0c1322] border border-[#222f46] rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={4}
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  placeholder="Mínimo 4 caracteres"
+                  className="w-full bg-[#0c1322] border border-[#222f46] rounded-xl px-3.5 py-2.5 pr-10 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                >
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-4 py-2.5 px-4 bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              className="w-full mt-4 py-2.5 px-4 bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 shadow-md shadow-blue-600/20"
             >
-              {isLoading ? 'Cadastrando...' : 'Cadastrar e Entrar'}
+              {isLoading ? (
+                <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              ) : (
+                'Cadastrar e Acessar'
+              )}
             </button>
 
             <div className="pt-2 text-center">
@@ -265,7 +303,7 @@ export const LoginView: React.FC = () => {
                 onClick={() => { setMode('login'); setErrorMessage(null); }}
                 className="text-xs text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
               >
-                Já possui conta? <span className="text-blue-400 font-semibold">Fazer Login</span>
+                Já possui acesso? <span className="text-blue-400 font-semibold">Fazer Login</span>
               </button>
             </div>
           </form>
