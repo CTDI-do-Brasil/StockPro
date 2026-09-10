@@ -73,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           className="flex flex-col items-start cursor-pointer"
         >
           <img src="/logo.png" alt="CTDI" className="h-7 w-auto object-contain" />
-          <span className="text-[10px] font-semibold text-slate-500 mt-0.5">IT - Engineering - Maintenance</span>
+          <span className="text-[10px] font-semibold text-blue-600 mt-0.5">IT - Engineering - Maintenance</span>
         </div>
 
         <button
@@ -111,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 alt="CTDI" 
                 className="h-11 max-w-[190px] w-auto object-contain transition-transform group-hover:scale-105" 
               />
-              <span className="text-xs font-semibold text-slate-600 tracking-wide mt-2">
+              <span className="text-xs font-bold text-blue-600 tracking-wide mt-2">
                 IT - Engineering - Maintenance
               </span>
             </div>
