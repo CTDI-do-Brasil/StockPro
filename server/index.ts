@@ -14,6 +14,14 @@ import { stockRouter } from './routes/stock';
 
 dotenv.config();
 
+// Proteção global contra encerramento inesperado do processo
+process.on('uncaughtException', (err) => {
+  console.warn('⚠️ [Uncaught Exception tratada]:', err.message);
+});
+process.on('unhandledRejection', (reason: any) => {
+  console.warn('⚠️ [Unhandled Rejection tratada]:', reason?.message || reason);
+});
+
 const app = express();
 // No CapRover a porta padrão é 80; em desenvolvimento local é 5000
 const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? 80 : 5000);

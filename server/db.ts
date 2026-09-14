@@ -48,7 +48,16 @@ function getPoolConfig(forceNoSsl = false): PoolConfig {
   };
 }
 
-export let pool = new Pool(getPoolConfig());
+export function createPool(forceNoSsl = false) {
+  const p = new Pool(getPoolConfig(forceNoSsl));
+  p.on('error', (err) => {
+    // Evita queda do processo Node.js por erro não tratado no pool
+    console.warn('⚠️ [PG Pool Error ignorado]:', err.message);
+  });
+  return p;
+}
+
+export let pool = createPool();
 
 let isDbConnected = false;
 
@@ -83,7 +92,7 @@ export async function initDatabase(): Promise<boolean> {
       console.warn('⚠️ Erro de SSL detectado no PostgreSQL, tentando reconectar sem SSL...');
       try {
         await pool.end().catch(() => {});
-        pool = new Pool(getPoolConfig(true));
+        pool = createPool(true);
         const client = await pool.connect();
         isDbConnected = true;
         console.log('✅ Conexão com o PostgreSQL estabelecida com sucesso (sem SSL)!');
@@ -117,6 +126,6 @@ setInterval(async () => {
       isDbConnected = true;
       console.log('🔄 PostgreSQL reconectado automaticamente!');
       client.release();
-    } catch {}
+    } catch (e) {}
   }
-}, 15000);
+}, 30000);
