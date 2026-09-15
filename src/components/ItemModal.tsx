@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStock } from '../context/StockContext';
+import { useAuth } from '../context/AuthContext';
 import { StockItem, Department, UnitType } from '../types';
 import { FolderTree, Plus, Tag, Link2, ExternalLink } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -19,8 +20,36 @@ export const ItemModal: React.FC<ItemModalProps> = ({
   defaultDepartment = 'TI'
 }) => {
   const { addItem, updateItem, categories } = useStock();
+  const { user } = useAuth();
 
-  const [department, setDepartment] = useState<Department>(defaultDepartment);
+  // Departamentos permitidos de acordo com o cadastro do usuário logado
+  const allowedDepartments: Department[] = useMemo(() => {
+    let depts: Department[] = [];
+    if (user?.departments && user.departments.length > 0) {
+      depts = user.departments;
+    } else if (user?.department) {
+      depts = user.department
+        .split(',')
+        .map(d => d.trim().toUpperCase() as Department)
+        .filter(d => ['TI', 'ENGENHARIA', 'MANUTENCAO'].includes(d));
+    }
+    if (depts.length === 0) {
+      depts = ['TI'];
+    }
+    // Ao editar um item existente, preserva o departamento atual do item
+    if (itemToEdit && !depts.includes(itemToEdit.department)) {
+      depts = [...depts, itemToEdit.department];
+    }
+    const order: Department[] = ['TI', 'ENGENHARIA', 'MANUTENCAO'];
+    return order.filter(d => depts.includes(d));
+  }, [user, itemToEdit]);
+
+  const [department, setDepartment] = useState<Department>(() => {
+    if (defaultDepartment && allowedDepartments.includes(defaultDepartment)) {
+      return defaultDepartment;
+    }
+    return allowedDepartments[0] || 'TI';
+  });
   const [sku, setSku] = useState('');
   const [barcode, setBarcode] = useState('');
   const [name, setName] = useState('');
@@ -64,9 +93,9 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setUnitPrice(itemToEdit.unitPrice);
       } else {
         // New item defaults
-        const dept: Department = (defaultDepartment === 'ENGENHARIA' || defaultDepartment === 'MANUTENCAO') 
-          ? defaultDepartment 
-          : 'TI';
+        const dept: Department = (defaultDepartment && allowedDepartments.includes(defaultDepartment))
+          ? defaultDepartment
+          : (allowedDepartments[0] || 'TI');
         setDepartment(dept);
         
         const matchingCats = categories.filter(c => c.department === dept);
@@ -84,11 +113,11 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setUnit('un');
         setUnitPrice(0);
         setReferenceLink('');
+        setError(null);
         generateAutoCodes(dept);
       }
-      setError(null);
     }
-  }, [isOpen, itemToEdit, defaultDepartment]);
+  }, [isOpen, itemToEdit, defaultDepartment, allowedDepartments]);
 
   const generateAutoCodes = (targetDept: Department) => {
     const prefix = targetDept === 'TI' ? 'TI' : targetDept === 'ENGENHARIA' ? 'ENG' : 'MAN';
@@ -211,13 +240,13 @@ export const ItemModal: React.FC<ItemModalProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 Departamento / Área Responsável:
               </label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['TI', 'ENGENHARIA', 'MANUTENCAO'] as Department[]).map((dept) => (
+              <div className="flex flex-wrap gap-2">
+                {allowedDepartments.map((dept) => (
                   <button
                     key={dept}
                     type="button"
                     onClick={() => handleDeptChange(dept)}
-                    className={`py-2 px-3 rounded-xl text-xs font-semibold transition-all border ${
+                    className={`flex-1 min-w-[100px] py-2 px-3 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${
                       department === dept
                         ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                         : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
