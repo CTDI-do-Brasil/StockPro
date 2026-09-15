@@ -5,6 +5,7 @@ import { StockItem, Department, UnitType } from '../types';
 import { FolderTree, Plus, Tag, Link2, ExternalLink } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CategoriesModal } from './CategoriesModal';
+import { DEFAULT_SYSTEM_CATEGORIES } from '../data/initialData';
 
 interface ItemModalProps {
   isOpen: boolean;
@@ -67,10 +68,14 @@ export const ItemModal: React.FC<ItemModalProps> = ({
 
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
 
-  // Available categories for selected department
-  const deptCategories = categories.filter(c => c.department === department);
+  // Categorias disponíveis para o departamento selecionado (com fallback padrão seguro)
+  const deptCategories = useMemo(() => {
+    const fromContext = categories.filter(c => c.department === department);
+    if (fromContext.length > 0) return fromContext;
+    return DEFAULT_SYSTEM_CATEGORIES.filter(c => c.department === department);
+  }, [categories, department]);
   
-  // Available subcategories for selected category
+  // Subcategorias disponíveis para a categoria selecionada
   const activeCategoryObj = deptCategories.find(c => c.name === category);
   const availableSubcategories = activeCategoryObj ? activeCategoryObj.subcategories : [];
 
@@ -99,8 +104,9 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setDepartment(dept);
         
         const matchingCats = categories.filter(c => c.department === dept);
-        const defaultCat = matchingCats[0]?.name || 'Geral';
-        const defaultSubcat = matchingCats[0]?.subcategories[0] || '';
+        const effectiveCats = matchingCats.length > 0 ? matchingCats : DEFAULT_SYSTEM_CATEGORIES.filter(c => c.department === dept);
+        const defaultCat = effectiveCats[0]?.name || 'Geral';
+        const defaultSubcat = effectiveCats[0]?.subcategories[0] || '';
         
         setCategory(defaultCat);
         setSubcategory(defaultSubcat);
@@ -117,7 +123,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         generateAutoCodes(dept);
       }
     }
-  }, [isOpen, itemToEdit, defaultDepartment, allowedDepartments]);
+  }, [isOpen, itemToEdit, defaultDepartment, allowedDepartments, categories]);
 
   const generateAutoCodes = (targetDept: Department) => {
     const prefix = targetDept === 'TI' ? 'TI' : targetDept === 'ENGENHARIA' ? 'ENG' : 'MAN';
@@ -131,8 +137,9 @@ export const ItemModal: React.FC<ItemModalProps> = ({
   const handleDeptChange = (newDept: Department) => {
     setDepartment(newDept);
     const matchingCats = categories.filter(c => c.department === newDept);
-    const firstCat = matchingCats[0]?.name || 'Geral';
-    const firstSubcat = matchingCats[0]?.subcategories[0] || '';
+    const effectiveCats = matchingCats.length > 0 ? matchingCats : DEFAULT_SYSTEM_CATEGORIES.filter(c => c.department === newDept);
+    const firstCat = effectiveCats[0]?.name || 'Geral';
+    const firstSubcat = effectiveCats[0]?.subcategories[0] || '';
     setCategory(firstCat);
     setSubcategory(firstSubcat);
     if (!itemToEdit) {
@@ -295,10 +302,13 @@ export const ItemModal: React.FC<ItemModalProps> = ({
                 <select
                   value={category}
                   onChange={(e) => handleCategoryChange(e.target.value)}
-                  className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
+                  className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500 font-medium"
                 >
+                  {category && !deptCategories.some(c => c.name === category) && (
+                    <option value={category}>{category}</option>
+                  )}
                   {deptCategories.map(cat => (
-                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    <option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>
                   ))}
                 </select>
               </div>

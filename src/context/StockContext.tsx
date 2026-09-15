@@ -232,7 +232,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
           if (hasDbContent) {
             setItems(dbData.items);
-            setCategories(dbData.categories);
+            setCategories(dbData.categories && dbData.categories.length > 0 ? dbData.categories : INITIAL_CATEGORIES);
             setMovements(dbData.movements);
             setLoans(dbData.loans);
             setWorkOrders(dbData.workOrders);
