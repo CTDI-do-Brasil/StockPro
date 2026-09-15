@@ -195,7 +195,6 @@ export const RequestsView: React.FC = () => {
               <p style="margin: 3px 0;"><strong>Destino da Compra:</strong> ${req.destination === 'REPOSICAO_ESTOQUE' ? '📦 Reposição de Estoque (Almoxarifado)' : '⚡ Uso Imediato (Aplicação Direta)'}</p>
               <p style="margin: 3px 0;"><strong>Solicitante:</strong> ${req.requester}</p>
               <p style="margin: 3px 0;"><strong>Departamento:</strong> ${req.department}</p>
-              ${req.costCenter ? `<p style="margin: 3px 0;"><strong>Centro de Custo / O.S.:</strong> ${req.costCenter}</p>` : ''}
             </div>
             <div>
               <p style="margin: 3px 0;"><strong>Data de Abertura:</strong> ${new Date(req.createdAt).toLocaleString('pt-BR')}</p>
@@ -551,8 +550,8 @@ export const RequestsView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Details: Requester, Reason, Cost Center, Date */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                {/* Details: Requester, Reason, Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                   <div>
                     <span className="text-slate-400 block text-[11px]">Solicitante:</span>
                     <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
@@ -565,13 +564,6 @@ export const RequestsView: React.FC = () => {
                     <span className="text-slate-400 block text-[11px]">Motivo / Justificativa:</span>
                     <span className="font-medium text-slate-800 block mt-0.5">
                       {req.reason}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Centro de Custo / O.S.:</span>
-                    <span className="font-medium text-slate-700 block mt-0.5">
-                      {req.costCenter || 'Não informado'}
                     </span>
                   </div>
 

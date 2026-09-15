@@ -33,7 +33,6 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
   const [department, setDepartment] = useState<Department>(user?.department || 'TI');
   const [priority, setPriority] = useState<RequestPriority>('NORMAL');
   const [reason, setReason] = useState('');
-  const [costCenter, setCostCenter] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -163,7 +162,6 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
       requester: requester.trim(),
       priority,
       reason: reason.trim(),
-      costCenter: costCenter.trim() || undefined,
       items: requestItems,
       totalEstimatedValue,
       notes: notes.trim() || undefined
@@ -174,7 +172,6 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
     // Reset & close
     setRequestItems([]);
     setReason('');
-    setCostCenter('');
     setNotes('');
     onClose();
   };
@@ -280,7 +277,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
           </div>
 
           {/* 2. Solicitante, Departamento, Prioridade & Centro de Custo */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Solicitante: *
@@ -333,19 +330,6 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
                 <option value="ALTA">🟠 Alta</option>
                 <option value="URGENTE">🔴 Urgente (Linha parada)</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Centro de Custo / O.S.:
-              </label>
-              <input
-                type="text"
-                value={costCenter}
-                onChange={(e) => setCostCenter(e.target.value)}
-                placeholder="Ex: CC-104 / OS-2026"
-                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500 focus:bg-white transition-all"
-              />
             </div>
           </div>
 
