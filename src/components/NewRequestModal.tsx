@@ -50,8 +50,8 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
   const [linkOrReference, setLinkOrReference] = useState('');
 
   // Common item fields
-  const [quantity, setQuantity] = useState<number>(1);
-  const [unitPrice, setUnitPrice] = useState<number>(0);
+  const [quantity, setQuantity] = useState<number | string>(1);
+  const [unitPrice, setUnitPrice] = useState<number | string>('');
 
   if (!isOpen) return null;
 
@@ -62,12 +62,16 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
     setSelectedCatalogItemId(itemId);
     const found = items.find(i => i.id === itemId);
     if (found) {
-      setUnitPrice(found.unitPrice || 0);
+      setUnitPrice(found.unitPrice > 0 ? found.unitPrice : '');
+    } else {
+      setUnitPrice('');
     }
   };
 
   const handleAddItem = () => {
     setError(null);
+    const parsedQty = Math.max(1, parseInt(String(quantity)) || 1);
+    const parsedPrice = Math.max(0, parseFloat(String(unitPrice)) || 0);
 
     if (itemMode === 'CATALOGO') {
       if (!selectedCatalogItemId || !selectedCatalogItem) {
@@ -75,10 +79,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
         return;
       }
 
-      if (quantity <= 0) {
-        setError('A quantidade deve ser maior que zero.');
-        return;
-      }
+      const itemRefPrice = parsedPrice > 0 ? parsedPrice : selectedCatalogItem.unitPrice;
 
       const newItem: RequestedItem = {
         id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -86,10 +87,10 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
         isNewItem: false,
         sku: selectedCatalogItem.sku,
         itemName: selectedCatalogItem.name,
-        quantity,
+        quantity: parsedQty,
         unit: selectedCatalogItem.unit,
-        estimatedUnitPrice: unitPrice > 0 ? unitPrice : selectedCatalogItem.unitPrice,
-        totalEstimatedPrice: quantity * (unitPrice > 0 ? unitPrice : selectedCatalogItem.unitPrice),
+        estimatedUnitPrice: itemRefPrice,
+        totalEstimatedPrice: parsedQty * itemRefPrice,
         supplierSuggested: selectedCatalogItem.supplier,
         linkOrReference: linkOrReference.trim() || undefined
       };
@@ -102,19 +103,14 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
         return;
       }
 
-      if (quantity <= 0) {
-        setError('A quantidade deve ser maior que zero.');
-        return;
-      }
-
       const newItem: RequestedItem = {
         id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         isNewItem: true,
         itemName: newItemName.trim(),
-        quantity,
+        quantity: parsedQty,
         unit: newItemUnit,
-        estimatedUnitPrice: unitPrice,
-        totalEstimatedPrice: quantity * unitPrice,
+        estimatedUnitPrice: parsedPrice,
+        totalEstimatedPrice: parsedQty * parsedPrice,
         linkOrReference: linkOrReference.trim() || undefined
       };
 
@@ -124,7 +120,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
     }
 
     setQuantity(1);
-    setUnitPrice(0);
+    setUnitPrice('');
   };
 
   const handleRemoveItem = (id: string) => {
@@ -451,7 +447,17 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
                   type="number"
                   min="1"
                   value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (/^0[0-9]+/.test(val)) {
+                      val = val.replace(/^0+/, '');
+                    }
+                    setQuantity(val);
+                  }}
+                  onBlur={() => {
+                    const num = parseInt(String(quantity));
+                    setQuantity(isNaN(num) || num < 1 ? 1 : num);
+                  }}
                   className="w-full bg-white border border-slate-200 text-slate-900 font-bold text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
                 />
               </div>
@@ -462,14 +468,29 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
                   type="number"
                   step="0.01"
                   min="0"
+                  placeholder="0.00"
                   value={unitPrice}
-                  onChange={(e) => setUnitPrice(Math.max(0, parseFloat(e.target.value) || 0))}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (/^0[0-9]+/.test(val)) {
+                      val = val.replace(/^0+/, '');
+                    }
+                    setUnitPrice(val);
+                  }}
+                  onBlur={() => {
+                    if (unitPrice !== '') {
+                      const num = parseFloat(String(unitPrice));
+                      setUnitPrice(isNaN(num) ? '' : num);
+                    }
+                  }}
                   className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
                 />
               </div>
 
               <div className="text-xs text-slate-500 pb-2 px-1">
-                Subtotal: <strong className="text-slate-900 font-mono">R$ {(quantity * unitPrice).toFixed(2)}</strong>
+                Subtotal: <strong className="text-slate-900 font-mono">
+                  R$ {((Math.max(1, parseInt(String(quantity)) || 1)) * (Math.max(0, parseFloat(String(unitPrice)) || 0))).toFixed(2)}
+                </strong>
               </div>
 
               <button

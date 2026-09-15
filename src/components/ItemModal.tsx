@@ -62,7 +62,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
   const [maxQuantity, setMaxQuantity] = useState<number>(20);
   const [suggestedPurchaseQty, setSuggestedPurchaseQty] = useState<number>(10);
   const [unit, setUnit] = useState<UnitType>('un');
-  const [unitPrice, setUnitPrice] = useState<number>(0);
+  const [unitPrice, setUnitPrice] = useState<number | string>(0);
   const [referenceLink, setReferenceLink] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -457,8 +457,22 @@ export const ItemModal: React.FC<ItemModalProps> = ({
                   type="number"
                   step="0.01"
                   min="0"
-                  value={unitPrice}
-                  onChange={(e) => setUnitPrice(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="0.00"
+                  value={unitPrice === 0 ? '' : unitPrice}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (/^0[0-9]+/.test(val)) {
+                      val = val.replace(/^0+/, '');
+                    }
+                    setUnitPrice(val === '' ? '' : val);
+                  }}
+                  onBlur={() => {
+                    if (unitPrice === '') setUnitPrice(0);
+                    else {
+                      const num = parseFloat(String(unitPrice));
+                      setUnitPrice(isNaN(num) ? 0 : num);
+                    }
+                  }}
                   className="w-full h-10 bg-slate-50 border border-slate-200 text-slate-900 font-bold text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
                 />
               </div>
