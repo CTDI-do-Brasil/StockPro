@@ -335,9 +335,9 @@ export const ItemModal: React.FC<ItemModalProps> = ({
             </div>
 
             {/* Quantities and Pricing */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 items-end">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1 whitespace-nowrap truncate" title="Quantidade Atual">
                   Qtd Atual:
                 </label>
                 <input
@@ -345,27 +345,27 @@ export const ItemModal: React.FC<ItemModalProps> = ({
                   min="0"
                   value={quantity}
                   onChange={(e) => setQuantity(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-bold text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
+                  className="w-full h-10 bg-slate-50 border border-slate-200 text-slate-900 font-bold text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1 text-amber-700">
-                  Estoque Mín (Alerta): *
+                <label className="block text-xs font-semibold text-amber-700 mb-1 whitespace-nowrap truncate" title="Estoque Mínimo (Alerta)">
+                  Estoque Mín: *
                 </label>
                 <input
                   type="number"
                   min="0"
                   value={minQuantity}
                   onChange={(e) => setMinQuantity(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="w-full bg-amber-50/50 border border-amber-300 text-amber-900 text-sm font-semibold rounded-xl px-3 py-2 outline-hidden focus:border-amber-500"
+                  className="w-full h-10 bg-amber-50/50 border border-amber-300 text-amber-900 text-sm font-semibold rounded-xl px-3 py-2 outline-hidden focus:border-amber-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-blue-700 mb-1">
+                <label className="block text-xs font-semibold text-blue-700 mb-1 whitespace-nowrap truncate" title="Sugestão de Compra">
                   Sugestão Compra:
                 </label>
                 <input
@@ -373,12 +373,12 @@ export const ItemModal: React.FC<ItemModalProps> = ({
                   min="1"
                   value={suggestedPurchaseQty}
                   onChange={(e) => setSuggestedPurchaseQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full bg-blue-50/50 border border-blue-300 text-blue-900 text-sm font-bold rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
+                  className="w-full h-10 bg-blue-50/50 border border-blue-300 text-blue-900 text-sm font-bold rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1 whitespace-nowrap truncate" title="Estoque Máximo">
                   Estoque Máx:
                 </label>
                 <input
@@ -386,18 +386,18 @@ export const ItemModal: React.FC<ItemModalProps> = ({
                   min="1"
                   value={maxQuantity}
                   onChange={(e) => setMaxQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
+                  className="w-full h-10 bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1 whitespace-nowrap truncate" title="Unidade de Medida">
                   Unidade:
                 </label>
                 <select
                   value={unit}
                   onChange={(e) => setUnit(e.target.value as UnitType)}
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-2 py-2 outline-hidden focus:border-blue-500"
+                  className="w-full h-10 bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-2 py-2 outline-hidden focus:border-blue-500"
                 >
                   <option value="un">un (Unidade)</option>
                   <option value="m">m (Metro)</option>
@@ -411,7 +411,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1 whitespace-nowrap truncate" title="Preço Unitário (R$)">
                   Preço Unit (R$):
                 </label>
                 <input
@@ -420,7 +420,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
                   min="0"
                   value={unitPrice}
                   onChange={(e) => setUnitPrice(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 font-bold text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
+                  className="w-full h-10 bg-slate-50 border border-slate-200 text-slate-900 font-bold text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
                 />
               </div>
             </div>
