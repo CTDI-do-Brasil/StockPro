@@ -11,7 +11,9 @@ import {
   Category,
   StockAlert,
   StockRequest,
-  RequestStatus
+  RequestStatus,
+  RequestReceiptRecord,
+  RequestedItemReceipt
 } from '../types';
 import { 
   INITIAL_ITEMS, 
@@ -82,6 +84,13 @@ interface StockContextType {
   // Requests (Solicitações de Compras: Uso Imediato vs Reposição de Estoque)
   createRequest: (data: Omit<StockRequest, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'status'>) => StockRequest;
   updateRequestStatus: (id: string, status: RequestStatus, responsibleUser?: string, invoiceNumber?: string, notes?: string) => void;
+  receiveRequestItems: (
+    requestId: string,
+    itemsToReceive: Array<{ id: string; quantityReceived: number }>,
+    responsibleUser: string,
+    invoiceNumber?: string,
+    notes?: string
+  ) => void;
   deleteRequest: (id: string) => void;
 
   // Suppliers & Locations
@@ -764,18 +773,22 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setRequests(prev => prev.map(req => {
       if (req.id !== id) return req;
 
-      // Se a compra for marcada como RECEBIDO e ainda não tiver sido recebida:
+      let updatedItems = [...req.items];
+
+      // Se a compra for marcada como RECEBIDO e ainda não tiver sido totalmente recebida:
       if (canonicalStatus === 'RECEBIDO' && req.status !== 'RECEBIDO') {
-        // Se a finalidade for REPOSIÇÃO DE ESTOQUE, dá ENTRADA AUTOMÁTICA no saldo do estoque
         if (req.destination === 'REPOSICAO_ESTOQUE') {
           req.items.forEach(reqItem => {
+            const pendingQty = Math.max(0, reqItem.quantity - (reqItem.receivedQuantity || 0));
+            if (pendingQty <= 0) return;
+
             if (reqItem.itemId) {
               // Item já existente no inventário
               setItems(currentItems => currentItems.map(item => {
                 if (item.id === reqItem.itemId) {
                   const updatedItem = {
                     ...item,
-                    quantity: item.quantity + reqItem.quantity,
+                    quantity: item.quantity + pendingQty,
                     unitPrice: reqItem.estimatedUnitPrice && reqItem.estimatedUnitPrice > 0 ? reqItem.estimatedUnitPrice : item.unitPrice,
                     lastUpdated: now
                   };
@@ -793,9 +806,9 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 itemName: reqItem.itemName,
                 department: req.department,
                 type: 'ENTRADA',
-                quantity: reqItem.quantity,
+                quantity: pendingQty,
                 unitPrice: reqItem.estimatedUnitPrice || 0,
-                totalValue: reqItem.quantity * (reqItem.estimatedUnitPrice || 0),
+                totalValue: pendingQty * (reqItem.estimatedUnitPrice || 0),
                 reason: `Recebimento de Compra #${req.code} (Reposição de Estoque)${invoiceNumber ? ` - NF: ${invoiceNumber}` : ''}`,
                 requester: req.requester,
                 date: movNow,
@@ -815,7 +828,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 department: req.department,
                 category: 'Geral',
                 description: `Material adquirido via Solicitação de Compra #${req.code}`,
-                quantity: reqItem.quantity,
+                quantity: pendingQty,
                 minQuantity: 1,
                 maxQuantity: reqItem.quantity * 2,
                 unit: reqItem.unit || 'un',
@@ -839,9 +852,9 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 itemName: reqItem.itemName,
                 department: req.department,
                 type: 'ENTRADA',
-                quantity: reqItem.quantity,
+                quantity: pendingQty,
                 unitPrice: reqItem.estimatedUnitPrice || 0,
-                totalValue: reqItem.quantity * (reqItem.estimatedUnitPrice || 0),
+                totalValue: pendingQty * (reqItem.estimatedUnitPrice || 0),
                 reason: `Recebimento e Cadastro de Novo Item #${req.code}${invoiceNumber ? ` - NF: ${invoiceNumber}` : ''}`,
                 requester: req.requester,
                 date: movNow,
@@ -852,17 +865,185 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             }
           });
         }
-        // Se a finalidade for USO_IMEDIATO: a mercadoria vai direto para o solicitante/aplicação, não altera o saldo de estoque
+
+        updatedItems = updatedItems.map(item => ({
+          ...item,
+          receivedQuantity: item.quantity
+        }));
       }
 
-      const updatedReq = {
+      const updatedReq: StockRequest = {
         ...req,
+        items: updatedItems,
         status: canonicalStatus,
-        purchasedAt: canonicalStatus === 'COMPRADO' ? now : req.purchasedAt,
+        purchasedAt: canonicalStatus === 'COMPRADO' ? (req.purchasedAt || now) : req.purchasedAt,
         receivedAt: canonicalStatus === 'RECEBIDO' ? now : req.receivedAt,
         receivedBy: canonicalStatus === 'RECEBIDO' ? (responsibleUser || 'Almoxarife') : req.receivedBy,
         invoiceNumber: invoiceNumber !== undefined ? invoiceNumber : req.invoiceNumber,
         notes: notes !== undefined ? notes : req.notes,
+        updatedAt: now
+      };
+
+      apiCall('/api/stock/requests', 'POST', updatedReq);
+      return updatedReq;
+    }));
+  };
+
+  const receiveRequestItems = (
+    requestId: string,
+    itemsToReceive: Array<{ id: string; quantityReceived: number }>,
+    responsibleUser: string,
+    invoiceNumber?: string,
+    notes?: string
+  ) => {
+    const now = new Date().toISOString();
+    const receiveMap = new Map<string, number>();
+    itemsToReceive.forEach(i => {
+      if (i.quantityReceived > 0) {
+        receiveMap.set(i.id, i.quantityReceived);
+      }
+    });
+
+    if (receiveMap.size === 0) return;
+
+    setRequests(prev => prev.map(req => {
+      if (req.id !== requestId) return req;
+
+      const receiptItemsRecord: RequestedItemReceipt[] = [];
+
+      const updatedItems = req.items.map(item => {
+        const qtyToReceive = receiveMap.get(item.id) || 0;
+        if (qtyToReceive <= 0) return item;
+
+        const previouslyReceived = item.receivedQuantity || 0;
+        const newReceivedQty = Math.min(item.quantity, previouslyReceived + qtyToReceive);
+
+        receiptItemsRecord.push({
+          itemId: item.id,
+          itemName: item.itemName,
+          quantityReceived: qtyToReceive
+        });
+
+        // Se for REPOSICAO_ESTOQUE, dá entrada no estoque
+        if (req.destination === 'REPOSICAO_ESTOQUE') {
+          if (item.itemId) {
+            setItems(currentItems => currentItems.map(stockItem => {
+              if (stockItem.id === item.itemId) {
+                const updatedStock = {
+                  ...stockItem,
+                  quantity: stockItem.quantity + qtyToReceive,
+                  unitPrice: item.estimatedUnitPrice && item.estimatedUnitPrice > 0 ? item.estimatedUnitPrice : stockItem.unitPrice,
+                  lastUpdated: now
+                };
+                apiCall('/api/stock/items', 'POST', updatedStock);
+                return updatedStock;
+              }
+              return stockItem;
+            }));
+
+            const movNow = new Date().toISOString();
+            const newMovement: StockMovement = {
+              id: `mov-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+              itemId: item.itemId,
+              itemSku: item.sku || 'N/A',
+              itemName: item.itemName,
+              department: req.department,
+              type: 'ENTRADA',
+              quantity: qtyToReceive,
+              unitPrice: item.estimatedUnitPrice || 0,
+              totalValue: qtyToReceive * (item.estimatedUnitPrice || 0),
+              reason: `Recebimento Parcial de Compra #${req.code}${invoiceNumber ? ` - NF: ${invoiceNumber}` : ''}`,
+              requester: req.requester,
+              date: movNow,
+              responsibleUser: responsibleUser || 'Almoxarife'
+            };
+            setMovements(curMovements => [newMovement, ...curMovements]);
+            apiCall('/api/stock/movements', 'POST', newMovement);
+          } else {
+            const newItemId = `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+            const generatedSku = item.sku || `SKU-${Date.now().toString().slice(-6)}`;
+            const newItem: StockItem = {
+              id: newItemId,
+              name: item.itemName,
+              sku: generatedSku,
+              barcode: '',
+              department: req.department,
+              category: 'Geral',
+              description: `Material adquirido via Solicitação de Compra #${req.code}`,
+              quantity: qtyToReceive,
+              minQuantity: 1,
+              maxQuantity: item.quantity * 2,
+              unit: item.unit || 'un',
+              unitPrice: item.estimatedUnitPrice || 0,
+              location: { warehouse: 'Almoxarifado Principal', aisleRack: 'Geral', shelfBin: 'A-01' },
+              supplier: item.supplierSuggested || '',
+              manufacturer: '',
+              isEquipment: false,
+              tags: ['compra_nova'],
+              createdAt: now,
+              lastUpdated: now
+            };
+            setItems(currentItems => [newItem, ...currentItems]);
+            apiCall('/api/stock/items', 'POST', newItem);
+
+            const movNow = new Date().toISOString();
+            const newMovement: StockMovement = {
+              id: `mov-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+              itemId: newItemId,
+              itemSku: generatedSku,
+              itemName: item.itemName,
+              department: req.department,
+              type: 'ENTRADA',
+              quantity: qtyToReceive,
+              unitPrice: item.estimatedUnitPrice || 0,
+              totalValue: qtyToReceive * (item.estimatedUnitPrice || 0),
+              reason: `Recebimento e Cadastro de Novo Item #${req.code}${invoiceNumber ? ` - NF: ${invoiceNumber}` : ''}`,
+              requester: req.requester,
+              date: movNow,
+              responsibleUser: responsibleUser || 'Almoxarife'
+            };
+            setMovements(curMovements => [newMovement, ...curMovements]);
+            apiCall('/api/stock/movements', 'POST', newMovement);
+
+            return {
+              ...item,
+              itemId: newItemId,
+              sku: generatedSku,
+              receivedQuantity: newReceivedQty
+            };
+          }
+        }
+
+        return {
+          ...item,
+          receivedQuantity: newReceivedQty
+        };
+      });
+
+      const isFullyReceived = updatedItems.every(i => (i.receivedQuantity || 0) >= i.quantity);
+      const newStatus: RequestStatus = isFullyReceived ? 'RECEBIDO' : 'PARCIALMENTE_RECEBIDO';
+
+      const newReceiptRecord: RequestReceiptRecord = {
+        id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        date: now,
+        receivedBy: responsibleUser || 'Almoxarife',
+        invoiceNumber: invoiceNumber || undefined,
+        notes: notes || undefined,
+        items: receiptItemsRecord
+      };
+
+      const existingHistory = req.receiptHistory || [];
+      const updatedHistory = [newReceiptRecord, ...existingHistory];
+
+      const updatedReq: StockRequest = {
+        ...req,
+        items: updatedItems,
+        status: newStatus,
+        receivedAt: isFullyReceived ? now : (req.receivedAt || now),
+        receivedBy: responsibleUser || req.receivedBy || 'Almoxarife',
+        invoiceNumber: invoiceNumber || req.invoiceNumber,
+        notes: notes !== undefined ? notes : req.notes,
+        receiptHistory: updatedHistory,
         updatedAt: now
       };
 
@@ -1189,6 +1370,7 @@ export const StockProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       requests,
       createRequest,
       updateRequestStatus,
+      receiveRequestItems,
       deleteRequest,
       addSupplier,
       updateSupplier,

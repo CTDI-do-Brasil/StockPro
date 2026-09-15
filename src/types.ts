@@ -207,8 +207,23 @@ export interface RegisterData {
 }
 
 export type PurchaseDestination = 'USO_IMEDIATO' | 'REPOSICAO_ESTOQUE';
-export type RequestStatus = 'SOLICITADO' | 'EM_COTACAO' | 'COMPRADO' | 'RECEBIDO' | 'CANCELADO';
+export type RequestStatus = 'SOLICITADO' | 'EM_COTACAO' | 'COMPRADO' | 'PARCIALMENTE_RECEBIDO' | 'RECEBIDO' | 'CANCELADO';
 export type RequestPriority = 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
+
+export interface RequestedItemReceipt {
+  itemId: string;
+  itemName: string;
+  quantityReceived: number;
+}
+
+export interface RequestReceiptRecord {
+  id: string;
+  date: string;
+  receivedBy: string;
+  invoiceNumber?: string;
+  notes?: string;
+  items: RequestedItemReceipt[];
+}
 
 export interface RequestedItem {
   id: string;
@@ -217,6 +232,7 @@ export interface RequestedItem {
   sku?: string;
   itemName: string;
   quantity: number;
+  receivedQuantity?: number;
   unit: UnitType;
   estimatedUnitPrice?: number;
   totalEstimatedPrice?: number;
@@ -243,6 +259,7 @@ export interface StockRequest {
   receivedBy?: string;
   invoiceNumber?: string;
   notes?: string;
+  receiptHistory?: RequestReceiptRecord[];
 }
 
 

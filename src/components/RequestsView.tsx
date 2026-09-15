@@ -25,12 +25,13 @@ import {
   Edit3,
   SlidersHorizontal,
   RotateCcw,
-  AlertTriangle
+  AlertTriangle,
+  AlertCircle
 } from 'lucide-react';
 import { NewRequestModal } from './NewRequestModal';
 
 export const RequestsView: React.FC = () => {
-  const { requests, items, updateRequestStatus, deleteRequest, selectedDept, setSelectedDept } = useStock();
+  const { requests, items, updateRequestStatus, receiveRequestItems, deleteRequest, selectedDept, setSelectedDept } = useStock();
   const { user } = useAuth();
 
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
@@ -43,6 +44,9 @@ export const RequestsView: React.FC = () => {
   const [receivingRequest, setReceivingRequest] = useState<StockRequest | null>(null);
   const [invoiceInput, setInvoiceInput] = useState('');
   const [receiverInput, setReceiverInput] = useState(user?.name || '');
+  const [receiveNotesInput, setReceiveNotesInput] = useState('');
+  const [receivingQuantities, setReceivingQuantities] = useState<Record<string, number | string>>({});
+  const [receiveError, setReceiveError] = useState<string | null>(null);
 
   // Status edit modal state
   const [editingStatusRequest, setEditingStatusRequest] = useState<StockRequest | null>(null);
@@ -57,7 +61,7 @@ export const RequestsView: React.FC = () => {
   // Metrics calculation
   const totalRequests = requests.length;
   const inQuotationCount = requests.filter(r => r.status === 'SOLICITADO' || (r.status as any) === 'PENDENTE' || r.status === 'EM_COTACAO').length;
-  const purchasedCount = requests.filter(r => r.status === 'COMPRADO').length;
+  const purchasedCount = requests.filter(r => r.status === 'COMPRADO' || r.status === 'PARCIALMENTE_RECEBIDO').length;
   const receivedCount = requests.filter(r => r.status === 'RECEBIDO').length;
 
   const totalOpenValue = requests
@@ -106,16 +110,64 @@ export const RequestsView: React.FC = () => {
     setReceivingRequest(req);
     setInvoiceInput('');
     setReceiverInput(user?.name || '');
+    setReceiveNotesInput('');
+    setReceiveError(null);
+    const initialQtyMap: Record<string, number> = {};
+    req.items.forEach(item => {
+      const pending = Math.max(0, item.quantity - (item.receivedQuantity || 0));
+      initialQtyMap[item.id] = pending;
+    });
+    setReceivingQuantities(initialQtyMap);
+  };
+
+  const handleFillAllReceiving = () => {
+    if (!receivingRequest) return;
+    const qtyMap: Record<string, number> = {};
+    receivingRequest.items.forEach(item => {
+      const pending = Math.max(0, item.quantity - (item.receivedQuantity || 0));
+      qtyMap[item.id] = pending;
+    });
+    setReceivingQuantities(qtyMap);
+  };
+
+  const handleClearAllReceiving = () => {
+    if (!receivingRequest) return;
+    const qtyMap: Record<string, number> = {};
+    receivingRequest.items.forEach(item => {
+      qtyMap[item.id] = 0;
+    });
+    setReceivingQuantities(qtyMap);
   };
 
   const handleConfirmReceive = () => {
     if (!receivingRequest) return;
+    setReceiveError(null);
 
-    updateRequestStatus(
+    const itemsToReceive = receivingRequest.items.map(item => {
+      const val = receivingQuantities[item.id];
+      const parsed = Math.max(0, parseInt(String(val)) || 0);
+      return {
+        id: item.id,
+        quantityReceived: parsed
+      };
+    }).filter(i => i.quantityReceived > 0);
+
+    if (itemsToReceive.length === 0) {
+      setReceiveError('Informe a quantidade recebida de pelo menos 1 item para registrar a entrega.');
+      return;
+    }
+
+    if (!receiverInput.trim()) {
+      setReceiveError('Informe o nome do conferente/responsável pelo recebimento.');
+      return;
+    }
+
+    receiveRequestItems(
       receivingRequest.id,
-      'RECEBIDO',
-      receiverInput.trim() || user?.name || 'Almoxarife',
-      invoiceInput.trim() || undefined
+      itemsToReceive,
+      receiverInput.trim(),
+      invoiceInput.trim() || undefined,
+      receiveNotesInput.trim() || undefined
     );
 
     setReceivingRequest(null);
@@ -408,7 +460,8 @@ export const RequestsView: React.FC = () => {
           <option value="SOLICITADO">Solicitado</option>
           <option value="EM_COTACAO">Em Cotação</option>
           <option value="COMPRADO">Comprado / Pedido Emitido</option>
-          <option value="RECEBIDO">Recebido</option>
+          <option value="PARCIALMENTE_RECEBIDO">Recebido Parcial</option>
+          <option value="RECEBIDO">Recebido (Total)</option>
           <option value="CANCELADO">Cancelado</option>
         </select>
 
@@ -454,6 +507,7 @@ export const RequestsView: React.FC = () => {
             const isSolicitado = req.status === 'SOLICITADO' || (req.status as any) === 'PENDENTE';
             const isCotacao = req.status === 'EM_COTACAO';
             const isComprado = req.status === 'COMPRADO';
+            const isParcial = req.status === 'PARCIALMENTE_RECEBIDO';
             const isRecebido = req.status === 'RECEBIDO';
             const isCancelado = req.status === 'CANCELADO' || (req.status as any) === 'CANCELADA';
             const isEstoque = req.destination === 'REPOSICAO_ESTOQUE';
@@ -521,6 +575,8 @@ export const RequestsView: React.FC = () => {
                           ? 'bg-purple-100 text-purple-800 border-purple-300'
                           : isComprado
                           ? 'bg-blue-100 text-blue-800 border-blue-300'
+                          : isParcial
+                          ? 'bg-amber-100 text-amber-900 border-amber-400'
                           : isRecebido
                           ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                           : isCancelado
@@ -532,16 +588,18 @@ export const RequestsView: React.FC = () => {
                       {isSolicitado && <Clock className="w-3.5 h-3.5 text-amber-600" />}
                       {isCotacao && <FileText className="w-3.5 h-3.5 text-purple-600" />}
                       {isComprado && <Truck className="w-3.5 h-3.5 text-blue-600" />}
+                      {isParcial && <Package className="w-3.5 h-3.5 text-amber-600" />}
                       {isRecebido && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
                       {isCancelado && <XCircle className="w-3.5 h-3.5 text-rose-600" />}
-                      {!isSolicitado && !isCotacao && !isComprado && !isRecebido && !isCancelado && <Clock className="w-3.5 h-3.5 text-slate-500" />}
+                      {!isSolicitado && !isCotacao && !isComprado && !isParcial && !isRecebido && !isCancelado && <Clock className="w-3.5 h-3.5 text-slate-500" />}
                       <span>
                         {isSolicitado && 'Solicitado'}
                         {isCotacao && 'Em Cotação'}
                         {isComprado && 'Pedido Emitido'}
+                        {isParcial && 'Recebido Parcial'}
                         {isRecebido && 'Recebido / Entregue'}
                         {isCancelado && 'Cancelado'}
-                        {!isSolicitado && !isCotacao && !isComprado && !isRecebido && !isCancelado && (req.status || 'Solicitado')}
+                        {!isSolicitado && !isCotacao && !isComprado && !isParcial && !isRecebido && !isCancelado && (req.status || 'Solicitado')}
                       </span>
                       <Edit3 className="w-3 h-3 opacity-60 ml-0.5" />
                     </button>
@@ -586,58 +644,121 @@ export const RequestsView: React.FC = () => {
                   </div>
 
                   <div className="divide-y divide-slate-200/60">
-                    {req.items.map(item => (
-                      <div key={item.id} className="py-2.5 flex items-center justify-between text-xs gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-slate-800 truncate">{item.itemName}</span>
-                            {item.isNewItem && (
-                              <span className="text-[9px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded-full font-bold">
-                                NOVO ITEM
-                              </span>
+                    {req.items.map(item => {
+                      const received = item.receivedQuantity || 0;
+                      const isItemComplete = received >= item.quantity;
+                      const isItemPartial = received > 0 && received < item.quantity;
+
+                      return (
+                        <div key={item.id} className="py-2.5 flex items-center justify-between text-xs gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-slate-800 truncate">{item.itemName}</span>
+                              {item.isNewItem && (
+                                <span className="text-[9px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded-full font-bold">
+                                  NOVO ITEM
+                                </span>
+                              )}
+                              
+                              {/* Status de recebimento do item */}
+                              {isItemComplete && (
+                                <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  <span>Recebido ({received}/{item.quantity} {item.unit})</span>
+                                </span>
+                              )}
+                              {isItemPartial && (
+                                <span className="text-[10px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-amber-600" />
+                                  <span>Recebido Parcial ({received}/{item.quantity} {item.unit} • Falta {item.quantity - received})</span>
+                                </span>
+                              )}
+                              {!isItemComplete && !isItemPartial && (isComprado || isParcial) && (
+                                <span className="text-[10px] bg-slate-200/80 text-slate-700 border border-slate-300 px-2 py-0.5 rounded-full font-medium">
+                                  Pendente ({item.quantity} {item.unit})
+                                </span>
+                              )}
+                            </div>
+
+                            {item.linkOrReference && (
+                              <div className="text-[11px] text-slate-500 mt-0.5">
+                                <a 
+                                  href={item.linkOrReference.startsWith('http') ? item.linkOrReference : `https://${item.linkOrReference}`} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  className="text-blue-600 hover:underline flex items-center gap-1 truncate max-w-[200px]"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  <span>Ver cotação/link</span>
+                                </a>
+                              </div>
                             )}
                           </div>
 
-                          {item.linkOrReference && (
-                            <div className="text-[11px] text-slate-500 mt-0.5">
-                              <a 
-                                href={item.linkOrReference.startsWith('http') ? item.linkOrReference : `https://${item.linkOrReference}`} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                className="text-blue-600 hover:underline flex items-center gap-1 truncate max-w-[200px]"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                <span>Ver cotação/link</span>
-                              </a>
+                          <div className="flex items-center gap-4 shrink-0 font-mono">
+                            <div className="text-right">
+                              <span className="px-2.5 py-1 bg-white border border-slate-200 text-slate-900 rounded-lg font-bold">
+                                {item.quantity} {item.unit}
+                              </span>
+                              {item.estimatedUnitPrice ? (
+                                <div className="text-[10px] text-slate-500 mt-0.5">
+                                  R$ {item.totalEstimatedPrice?.toFixed(2)}
+                                </div>
+                              ) : null}
                             </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-4 shrink-0 font-mono">
-                          <div className="text-right">
-                            <span className="px-2.5 py-1 bg-white border border-slate-200 text-slate-900 rounded-lg font-bold">
-                              {item.quantity} {item.unit}
-                            </span>
-                            {item.estimatedUnitPrice ? (
-                              <div className="text-[10px] text-slate-500 mt-0.5">
-                                R$ {item.totalEstimatedPrice?.toFixed(2)}
-                              </div>
-                            ) : null}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Additional notes or receipt details */}
+                {/* Additional notes */}
                 {req.notes && (
                   <div className="text-xs text-slate-500 bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
                     <strong>Obs:</strong> {req.notes}
                   </div>
                 )}
 
-                {isRecebido && req.receivedAt && (
+                {/* Histórico de Entregas Realizadas */}
+                {req.receiptHistory && req.receiptHistory.length > 0 && (
+                  <div className="bg-emerald-50/40 border border-emerald-200/70 rounded-xl p-3.5 space-y-2 text-xs">
+                    <div className="font-bold text-emerald-900 flex items-center justify-between text-[11px] uppercase tracking-wider">
+                      <div className="flex items-center gap-1.5">
+                        <Receipt className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Histórico de Entregas / Recebimentos ({req.receiptHistory.length}):</span>
+                      </div>
+                      {isRecebido && (
+                        <span className="text-emerald-700 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Totalmente Concluído
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-2 divide-y divide-emerald-100">
+                      {req.receiptHistory.map((rec, idx) => (
+                        <div key={rec.id || idx} className="pt-2 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-700">
+                          <div>
+                            <span className="font-bold text-slate-900">
+                              {rec.invoiceNumber ? `NF: ${rec.invoiceNumber}` : 'Sem NF informada'}
+                            </span>
+                            <span className="text-slate-600"> • Recebido por: <strong>{rec.receivedBy}</strong> em {new Date(rec.date).toLocaleString('pt-BR')}</span>
+                            {rec.notes && <span className="text-slate-500 block italic text-[10px]">Obs: {rec.notes}</span>}
+                          </div>
+                          <div className="font-mono text-emerald-900 text-[10px] bg-emerald-100/70 border border-emerald-200 px-2 py-1 rounded-md self-start sm:self-auto flex flex-wrap gap-1">
+                            {rec.items.map((i, iIdx) => (
+                              <span key={iIdx} className="bg-white/80 px-1.5 py-0.5 rounded text-emerald-950 font-bold">
+                                {i.itemName}: +{i.quantityReceived}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Single full receipt notification fallback */}
+                {isRecebido && (!req.receiptHistory || req.receiptHistory.length === 0) && req.receivedAt && (
                   <div className={`text-xs p-3 rounded-xl flex items-center gap-2 border ${
                     isEstoque 
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
@@ -730,13 +851,13 @@ export const RequestsView: React.FC = () => {
                       </>
                     )}
 
-                    {isComprado && (
+                    {(isComprado || isParcial) && (
                       <button
                         onClick={() => handleOpenReceiveModal(req)}
                         className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Registrar Recebimento {isEstoque && '(Entrada no Estoque)'}</span>
+                        <span>{isParcial ? 'Registrar Novo Recebimento' : 'Registrar Recebimento'} {isEstoque && '(Entrada no Estoque)'}</span>
                       </button>
                     )}
 
@@ -764,42 +885,146 @@ export const RequestsView: React.FC = () => {
         onClose={() => setIsNewModalOpen(false)}
       />
 
-      {/* Receive Modal (Confirmação de Recebimento com NF e Responsável) */}
+      {/* Receive Modal (Registro de Recebimento Total ou Parcial com NFs) */}
       {receivingRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-base font-bold text-slate-900">
-                  Registrar Recebimento de Compra
-                </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl p-6 space-y-4 my-8 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Registrar Recebimento de Compra
+                  </h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    Pedido #{receivingRequest.code} • {receivingRequest.destination === 'REPOSICAO_ESTOQUE' ? 'Reposição de Estoque' : 'Uso Imediato'}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setReceivingRequest(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="text-xs text-slate-600 space-y-2">
-              <p>
-                Confirma o recebimento da solicitação <strong>#{receivingRequest.code}</strong>?
-              </p>
-              
+            {/* Informational banner */}
+            <div className="shrink-0 text-xs">
               {receivingRequest.destination === 'REPOSICAO_ESTOQUE' ? (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs">
-                  📦 <strong>Reposição de Estoque:</strong> As quantidades de {receivingRequest.items.length} item(ns) serão somadas <strong>automaticamente ao saldo do estoque</strong> e registradas em Movimentações de Entrada!
+                <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl text-emerald-900 flex items-start gap-2">
+                  <Package className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <strong>Entrada no Estoque:</strong> As quantidades confirmadas abaixo serão somadas <strong>diretamente ao inventário</strong> com registro de movimentação de entrada.
+                  </div>
                 </div>
               ) : (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-xs">
-                  ⚡ <strong>Uso Imediato:</strong> O material será registrado como entregue diretamente para <strong>{receivingRequest.requester}</strong>, sem inflar o saldo do estoque do almoxarifado.
+                <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-blue-900 flex items-start gap-2">
+                  <Zap className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <strong>Uso Imediato / Direto:</strong> As peças recebidas serão registradas como entregues diretamente ao solicitante (<strong>{receivingRequest.requester}</strong>).
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="space-y-3 pt-1">
+            {/* Items Table with Quantity Inputs */}
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Itens da Solicitação ({receivingRequest.items.length})
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleFillAllReceiving}
+                    className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Receber Todos Pendentes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearAllReceiving}
+                    className="text-[11px] font-medium text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Zerar
+                  </button>
+                </div>
+              </div>
+
+              <div className="divide-y divide-slate-200/70">
+                {receivingRequest.items.map(item => {
+                  const alreadyReceived = item.receivedQuantity || 0;
+                  const pending = Math.max(0, item.quantity - alreadyReceived);
+                  const isFinished = pending === 0;
+                  const currentVal = receivingQuantities[item.id] ?? pending;
+
+                  return (
+                    <div key={item.id} className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-900">{item.itemName}</span>
+                          {item.isNewItem && (
+                            <span className="text-[9px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded-full font-bold">
+                              NOVO
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-3">
+                          <span>Solicitado: <strong>{item.quantity} {item.unit}</strong></span>
+                          <span>Já recebido: <strong className="text-emerald-700">{alreadyReceived} {item.unit}</strong></span>
+                          <span>Falta: <strong className="text-amber-700">{pending} {item.unit}</strong></span>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-2">
+                        {isFinished ? (
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/70 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Totalmente Entregue
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-[11px] font-medium text-slate-500">Receber agora:</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={pending}
+                              value={currentVal}
+                              onChange={(e) => {
+                                let val = e.target.value;
+                                if (/^0[0-9]+/.test(val)) {
+                                  val = val.replace(/^0+/, '');
+                                }
+                                const num = parseInt(val) || 0;
+                                const clamped = Math.min(pending, Math.max(0, num));
+                                setReceivingQuantities(prev => ({ ...prev, [item.id]: val === '' ? '' : clamped }));
+                              }}
+                              className="w-16 h-8 text-center bg-white border border-slate-300 text-slate-900 font-bold text-xs rounded-lg px-1 outline-hidden focus:border-emerald-500"
+                            />
+                            <span className="text-[11px] text-slate-400 font-medium">{item.unit}</span>
+                            <button
+                              type="button"
+                              onClick={() => setReceivingQuantities(prev => ({ ...prev, [item.id]: pending }))}
+                              className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-1.5 py-1 rounded border border-slate-200 font-bold"
+                              title="Preencher com todo o saldo pendente deste item"
+                            >
+                              Máx
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Inputs: NF, Conferente, Obs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 shrink-0">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Número da Nota Fiscal (NF):
@@ -826,24 +1051,53 @@ export const RequestsView: React.FC = () => {
                   required
                 />
               </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Observações / Detalhes da Entrega (Opcional):
+                </label>
+                <input
+                  type="text"
+                  value={receiveNotesInput}
+                  onChange={(e) => setReceiveNotesInput(e.target.value)}
+                  placeholder="Ex: Primeira remessa parcial entregue via transportadora"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
+                />
+              </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setReceivingRequest(null)}
-                className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmReceive}
-                className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Confirmar Recebimento</span>
-              </button>
+            {receiveError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium flex items-center gap-2 shrink-0">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{receiveError}</span>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 shrink-0">
+              <div className="text-xs text-slate-500 font-medium">
+                Total de peças nesta remessa: <strong className="text-slate-900 font-mono">
+                  {Object.values(receivingQuantities).reduce<number>((acc, v) => acc + (parseInt(String(v)) || 0), 0)} un
+                </strong>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReceivingRequest(null)}
+                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmReceive}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Confirmar Recebimento</span>
+                </button>
+              </div>
             </div>
 
           </div>
@@ -973,6 +1227,36 @@ export const RequestsView: React.FC = () => {
                   </span>
                 </label>
 
+                {/* PARCIALMENTE_RECEBIDO */}
+                <label 
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                    targetStatus === 'PARCIALMENTE_RECEBIDO'
+                      ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-400/40'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="radio" 
+                      name="requestStatus" 
+                      value="PARCIALMENTE_RECEBIDO"
+                      checked={targetStatus === 'PARCIALMENTE_RECEBIDO'}
+                      onChange={() => setTargetStatus('PARCIALMENTE_RECEBIDO')}
+                      className="text-amber-600 focus:ring-amber-500 cursor-pointer"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">Recebido Parcial</span>
+                        <span className="text-[11px] text-slate-500">Parte dos itens entregues / Restante ainda pendente</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                    Fase 4
+                  </span>
+                </label>
+
                 {/* RECEBIDO */}
                 <label 
                   className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
@@ -993,13 +1277,13 @@ export const RequestsView: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <div>
-                        <span className="text-xs font-bold text-slate-900 block">Recebido / Entregue</span>
-                        <span className="text-[11px] text-slate-500">Mercadoria recebida e conferida com sucesso</span>
+                        <span className="text-xs font-bold text-slate-900 block">Recebido / Entregue (Total)</span>
+                        <span className="text-[11px] text-slate-500">100% dos materiais recebidos e conferidos</span>
                       </div>
                     </div>
                   </div>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                    Fase 4
+                    Fase 5
                   </span>
                 </label>
 
