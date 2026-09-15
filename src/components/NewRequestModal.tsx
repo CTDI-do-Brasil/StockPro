@@ -12,8 +12,7 @@ import {
   Zap, 
   Layers, 
   DollarSign, 
-  Link as LinkIcon, 
-  Building2 
+  Link as LinkIcon
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -48,7 +47,6 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
   // Fields for New item
   const [newItemName, setNewItemName] = useState('');
   const [newItemUnit, setNewItemUnit] = useState<UnitType>('un');
-  const [supplierSuggested, setSupplierSuggested] = useState('');
   const [linkOrReference, setLinkOrReference] = useState('');
 
   // Common item fields
@@ -92,7 +90,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
         unit: selectedCatalogItem.unit,
         estimatedUnitPrice: unitPrice > 0 ? unitPrice : selectedCatalogItem.unitPrice,
         totalEstimatedPrice: quantity * (unitPrice > 0 ? unitPrice : selectedCatalogItem.unitPrice),
-        supplierSuggested: supplierSuggested.trim() || selectedCatalogItem.supplier,
+        supplierSuggested: selectedCatalogItem.supplier,
         linkOrReference: linkOrReference.trim() || undefined
       };
 
@@ -117,13 +115,11 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
         unit: newItemUnit,
         estimatedUnitPrice: unitPrice,
         totalEstimatedPrice: quantity * unitPrice,
-        supplierSuggested: supplierSuggested.trim() || undefined,
         linkOrReference: linkOrReference.trim() || undefined
       };
 
       setRequestItems(prev => [...prev, newItem]);
       setNewItemName('');
-      setSupplierSuggested('');
       setLinkOrReference('');
     }
 
@@ -382,33 +378,20 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
             {/* Sub-form based on mode */}
             {itemMode === 'CATALOGO' ? (
               <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div className="sm:col-span-2">
-                    <label className="block text-[11px] text-slate-500 mb-0.5">Selecione o Item Cadastrado:</label>
-                    <select
-                      value={selectedCatalogItemId}
-                      onChange={(e) => handleSelectCatalogItem(e.target.value)}
-                      className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
-                    >
-                      <option value="">-- Escolha um item do estoque ({catalogItems.length}) --</option>
-                      {catalogItems.map(item => (
-                        <option key={item.id} value={item.id}>
-                          {item.name} (Saldo atual: {item.quantity} {item.unit}) - Ref: R$ {item.unitPrice.toFixed(2)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] text-slate-500 mb-0.5">Fornecedor Sugerido:</label>
-                    <input
-                      type="text"
-                      value={supplierSuggested}
-                      onChange={(e) => setSupplierSuggested(e.target.value)}
-                      placeholder="Ex: Distribuidor ABC"
-                      className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[11px] text-slate-500 mb-0.5">Selecione o Item Cadastrado: *</label>
+                  <select
+                    value={selectedCatalogItemId}
+                    onChange={(e) => handleSelectCatalogItem(e.target.value)}
+                    className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
+                  >
+                    <option value="">-- Escolha um item do estoque ({catalogItems.length}) --</option>
+                    {catalogItems.map(item => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} (Saldo atual: {item.quantity} {item.unit}) - Ref: R$ {item.unitPrice.toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             ) : (
@@ -444,34 +427,18 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[11px] text-slate-500 mb-0.5 flex items-center gap-1">
-                      <Building2 className="w-3 h-3 text-slate-400" />
-                      Fornecedor Sugerido:
-                    </label>
-                    <input
-                      type="text"
-                      value={supplierSuggested}
-                      onChange={(e) => setSupplierSuggested(e.target.value)}
-                      placeholder="Ex: Kalunga / Mercado Livre / Fabricante"
-                      className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] text-slate-500 mb-0.5 flex items-center gap-1">
-                      <LinkIcon className="w-3 h-3 text-slate-400" />
-                      Link do Produto / Cotação:
-                    </label>
-                    <input
-                      type="text"
-                      value={linkOrReference}
-                      onChange={(e) => setLinkOrReference(e.target.value)}
-                      placeholder="https://... ou Código de Referência"
-                      className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[11px] text-slate-500 mb-0.5 flex items-center gap-1">
+                    <LinkIcon className="w-3 h-3 text-slate-400" />
+                    Link do Produto / Cotação:
+                  </label>
+                  <input
+                    type="text"
+                    value={linkOrReference}
+                    onChange={(e) => setLinkOrReference(e.target.value)}
+                    placeholder="https://... ou Código de Referência"
+                    className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
+                  />
                 </div>
               </div>
             )}
@@ -545,12 +512,11 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
                         )}
                       </div>
 
-                      <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-3">
-                        {item.supplierSuggested && <span>Fornecedor: <strong>{item.supplierSuggested}</strong></span>}
-                        {item.linkOrReference && (
-                          <span className="truncate max-w-[200px] text-blue-600">Ref: {item.linkOrReference}</span>
-                        )}
-                      </div>
+                      {item.linkOrReference && (
+                        <div className="text-[11px] text-blue-600 mt-0.5 truncate max-w-[280px]">
+                          Ref: {item.linkOrReference}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0">

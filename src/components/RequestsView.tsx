@@ -20,7 +20,6 @@ import {
   Truck, 
   FileText, 
   ExternalLink,
-  Building2,
   Receipt,
   X,
   Edit3,
@@ -158,7 +157,6 @@ export const RequestsView: React.FC = () => {
         <td style="padding: 8px; border: 1px solid #cbd5e1; font-family: monospace; text-align: center;">${idx + 1}</td>
         <td style="padding: 8px; border: 1px solid #cbd5e1;">
           <strong>${item.itemName}</strong>
-          ${item.supplierSuggested ? `<div style="font-size: 11px; color: #64748b;">Fornecedor: ${item.supplierSuggested}</div>` : ''}
           ${item.linkOrReference ? `<div style="font-size: 11px; color: #0284c7;">Ref: ${item.linkOrReference}</div>` : ''}
         </td>
         <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">${item.quantity} ${item.unit}</td>
@@ -600,14 +598,8 @@ export const RequestsView: React.FC = () => {
                             )}
                           </div>
 
-                          <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-3">
-                            {item.supplierSuggested && (
-                              <span className="flex items-center gap-1">
-                                <Building2 className="w-3 h-3 text-slate-400" />
-                                Fornecedor: <strong>{item.supplierSuggested}</strong>
-                              </span>
-                            )}
-                            {item.linkOrReference && (
+                          {item.linkOrReference && (
+                            <div className="text-[11px] text-slate-500 mt-0.5">
                               <a 
                                 href={item.linkOrReference.startsWith('http') ? item.linkOrReference : `https://${item.linkOrReference}`} 
                                 target="_blank" 
@@ -617,8 +609,8 @@ export const RequestsView: React.FC = () => {
                                 <ExternalLink className="w-3 h-3" />
                                 <span>Ver cotação/link</span>
                               </a>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-4 shrink-0 font-mono">
