@@ -26,9 +26,11 @@ import {
   SlidersHorizontal,
   RotateCcw,
   AlertTriangle,
-  AlertCircle
+  AlertCircle,
+  Mail
 } from 'lucide-react';
 import { NewRequestModal } from './NewRequestModal';
+import { openRequestInOutlook, copyRequestTableToClipboard } from '../utils/emailOutlook';
 
 export const RequestsView: React.FC = () => {
   const { requests, items, updateRequestStatus, receiveRequestItems, deleteRequest, selectedDept, setSelectedDept } = useStock();
@@ -192,6 +194,26 @@ export const RequestsView: React.FC = () => {
       statusNotesInput.trim() || undefined
     );
     setEditingStatusRequest(null);
+  };
+
+  // Toast notification state
+  const [toastNotification, setToastNotification] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastNotification(msg);
+    setTimeout(() => {
+      setToastNotification(prev => (prev === msg ? null : prev));
+    }, 5000);
+  };
+
+  const handleOpenInOutlook = async (req: StockRequest) => {
+    const savedEmail = localStorage.getItem('stock_purchases_email') || '';
+    const res = await openRequestInOutlook(req, savedEmail);
+    if (res.copied) {
+      showToast(`Solicitação #${req.code}: Arquivo gerado para o Outlook e tabela formatada copiada para sua área de transferência (Ctrl+V)!`);
+    } else {
+      showToast(`Solicitação #${req.code}: Arquivo gerado para o Outlook!`);
+    }
   };
 
   const handleConfirmDelete = () => {
@@ -654,6 +676,11 @@ export const RequestsView: React.FC = () => {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-slate-800 truncate">{item.itemName}</span>
+                              {item.brand && (
+                                <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded font-medium">
+                                  Marca: {item.brand}
+                                </span>
+                              )}
                               {item.isNewItem && (
                                 <span className="text-[9px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded-full font-bold">
                                   NOVO ITEM
@@ -785,6 +812,15 @@ export const RequestsView: React.FC = () => {
                     >
                       <Printer className="w-3.5 h-3.5" />
                       <span>Imprimir</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenInOutlook(req)}
+                      className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-indigo-200 shadow-2xs"
+                      title="Abrir no Outlook com tabela HTML formatada"
+                    >
+                      <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Abrir no Outlook</span>
                     </button>
 
                     <button
@@ -1475,6 +1511,21 @@ export const RequestsView: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Floating Toast Notification for Outlook / System Actions */}
+      {toastNotification && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-md bg-slate-900 text-white text-xs px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+          <span className="leading-snug">{toastNotification}</span>
+          <button
+            type="button"
+            onClick={() => setToastNotification(null)}
+            className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors ml-auto cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 

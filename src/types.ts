@@ -231,6 +231,7 @@ export interface RequestedItem {
   isNewItem: boolean;
   sku?: string;
   itemName: string;
+  brand?: string;
   quantity: number;
   receivedQuantity?: number;
   unit: UnitType;

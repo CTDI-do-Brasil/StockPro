@@ -12,9 +12,11 @@ import {
   Zap, 
   Layers, 
   DollarSign, 
-  Link as LinkIcon
+  Link as LinkIcon,
+  Mail
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { openRequestInOutlook } from '../utils/emailOutlook';
 
 interface NewRequestModalProps {
   isOpen: boolean;
@@ -35,6 +37,10 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  // E-mail / Outlook integration options
+  const [openOutlookOnCreate, setOpenOutlookOnCreate] = useState(true);
+  const [recipientEmail, setRecipientEmail] = useState(() => localStorage.getItem('stock_purchases_email') || '');
+
   // Items list in this request
   const [requestItems, setRequestItems] = useState<RequestedItem[]>([]);
 
@@ -46,6 +52,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
   
   // Fields for New item
   const [newItemName, setNewItemName] = useState('');
+  const [newItemBrand, setNewItemBrand] = useState('');
   const [newItemUnit, setNewItemUnit] = useState<UnitType>('un');
   const [linkOrReference, setLinkOrReference] = useState('');
 
@@ -87,6 +94,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
         isNewItem: false,
         sku: selectedCatalogItem.sku,
         itemName: selectedCatalogItem.name,
+        brand: selectedCatalogItem.manufacturer || selectedCatalogItem.supplier || undefined,
         quantity: parsedQty,
         unit: selectedCatalogItem.unit,
         estimatedUnitPrice: itemRefPrice,
@@ -107,6 +115,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
         id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         isNewItem: true,
         itemName: newItemName.trim(),
+        brand: newItemBrand.trim() || undefined,
         quantity: parsedQty,
         unit: newItemUnit,
         estimatedUnitPrice: parsedPrice,
@@ -116,6 +125,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
 
       setRequestItems(prev => [...prev, newItem]);
       setNewItemName('');
+      setNewItemBrand('');
       setLinkOrReference('');
     }
 
@@ -148,7 +158,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
       return;
     }
 
-    createRequest({
+    const createdReq = createRequest({
       destination,
       department,
       requester: requester.trim(),
@@ -158,6 +168,10 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
       totalEstimatedValue,
       notes: notes.trim() || undefined
     });
+
+    if (openOutlookOnCreate) {
+      openRequestInOutlook(createdReq, recipientEmail.trim() || undefined);
+    }
 
     confetti({ particleCount: 35, spread: 60, origin: { y: 0.8 } });
 
@@ -423,18 +437,31 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] text-slate-500 mb-0.5 flex items-center gap-1">
-                    <LinkIcon className="w-3 h-3 text-slate-400" />
-                    Link do Produto / Cotação:
-                  </label>
-                  <input
-                    type="text"
-                    value={linkOrReference}
-                    onChange={(e) => setLinkOrReference(e.target.value)}
-                    placeholder="https://... ou Código de Referência"
-                    className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="sm:col-span-1">
+                    <label className="block text-[11px] text-slate-500 mb-0.5">Marca / Fabricante:</label>
+                    <input
+                      type="text"
+                      value={newItemBrand}
+                      onChange={(e) => setNewItemBrand(e.target.value)}
+                      placeholder="Ex: Dell, Siemens, 3M..."
+                      className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] text-slate-500 mb-0.5 flex items-center gap-1">
+                      <LinkIcon className="w-3 h-3 text-slate-400" />
+                      Link do Produto / Cotação:
+                    </label>
+                    <input
+                      type="text"
+                      value={linkOrReference}
+                      onChange={(e) => setLinkOrReference(e.target.value)}
+                      placeholder="https://... ou Código de Referência"
+                      className="w-full bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-2 outline-hidden focus:border-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -524,8 +551,13 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
                 {requestItems.map(item => (
                   <div key={item.id} className="p-3 flex items-center justify-between gap-3 text-xs hover:bg-slate-50/70 transition-colors">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-slate-900 truncate">{item.itemName}</span>
+                        {item.brand && (
+                          <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded font-medium">
+                            Marca: {item.brand}
+                          </span>
+                        )}
                         {item.isNewItem && (
                           <span className="text-[9px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded-full font-bold">
                             NOVO ITEM
@@ -535,7 +567,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
 
                       {item.linkOrReference && (
                         <div className="text-[11px] text-blue-600 mt-0.5 truncate max-w-[280px]">
-                          Ref: {item.linkOrReference}
+                          Ref/Link: {item.linkOrReference}
                         </div>
                       )}
                     </div>
@@ -579,6 +611,45 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
               placeholder="Instruções para o setor de compras ou recebimento..."
               className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl px-3 py-2 outline-hidden focus:border-blue-500 focus:bg-white transition-all"
             />
+          </div>
+
+          {/* Integração Outlook / E-mail */}
+          <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={openOutlookOnCreate}
+                  onChange={(e) => setOpenOutlookOnCreate(e.target.checked)}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Mail className="w-4 h-4 text-blue-600" />
+                  Abrir no Outlook com Tabela Formatada ao criar
+                </span>
+              </label>
+              <span className="text-[10px] text-blue-700 bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-full font-semibold">
+                Tabela HTML + .EML
+              </span>
+            </div>
+
+            {openOutlookOnCreate && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 pt-1 border-t border-blue-100">
+                <label className="text-[11px] text-slate-600 font-medium shrink-0">
+                  E-mail de Destino (Setor de Compras):
+                </label>
+                <input
+                  type="email"
+                  value={recipientEmail}
+                  onChange={(e) => {
+                    setRecipientEmail(e.target.value);
+                    localStorage.setItem('stock_purchases_email', e.target.value);
+                  }}
+                  placeholder="ex: compras@suaempresa.com.br"
+                  className="w-full flex-1 bg-white border border-slate-200 text-slate-900 text-xs rounded-lg px-2.5 py-1.5 outline-hidden focus:border-blue-500 shadow-2xs"
+                />
+              </div>
+            )}
           </div>
         </form>
 

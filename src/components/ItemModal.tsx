@@ -46,8 +46,8 @@ export const ItemModal: React.FC<ItemModalProps> = ({
   }, [user, itemToEdit]);
 
   const [department, setDepartment] = useState<Department>(() => {
-    if (defaultDepartment && allowedDepartments.includes(defaultDepartment)) {
-      return defaultDepartment;
+    if (defaultDepartment && allowedDepartments.includes(defaultDepartment as Department)) {
+      return defaultDepartment as Department;
     }
     return allowedDepartments[0] || 'TI';
   });
@@ -98,8 +98,8 @@ export const ItemModal: React.FC<ItemModalProps> = ({
         setUnitPrice(itemToEdit.unitPrice);
       } else {
         // New item defaults
-        const dept: Department = (defaultDepartment && allowedDepartments.includes(defaultDepartment))
-          ? defaultDepartment
+        const dept: Department = (defaultDepartment && allowedDepartments.includes(defaultDepartment as Department))
+          ? (defaultDepartment as Department)
           : (allowedDepartments[0] || 'TI');
         setDepartment(dept);
         
