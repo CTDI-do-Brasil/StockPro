@@ -356,7 +356,7 @@ export const RequestsView: React.FC = () => {
           }`}
         >
           <div className="flex items-center justify-between text-amber-800 text-xs font-semibold mb-1">
-            <span>EM COTAÇÃO / ABERTAS</span>
+            <span>EM APROVAÇÃO / ABERTAS</span>
             <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
           </div>
           <div className="text-2xl font-bold text-amber-600">{inQuotationCount}</div>
@@ -458,7 +458,7 @@ export const RequestsView: React.FC = () => {
         >
           <option value="TODOS">Todos os Status</option>
           <option value="SOLICITADO">Solicitado</option>
-          <option value="EM_COTACAO">Em Cotação</option>
+          <option value="EM_COTACAO">Aguardando Aprovação</option>
           <option value="COMPRADO">Comprado / Pedido Emitido</option>
           <option value="PARCIALMENTE_RECEBIDO">Recebido Parcial</option>
           <option value="RECEBIDO">Recebido (Total)</option>
@@ -594,7 +594,7 @@ export const RequestsView: React.FC = () => {
                       {!isSolicitado && !isCotacao && !isComprado && !isParcial && !isRecebido && !isCancelado && <Clock className="w-3.5 h-3.5 text-slate-500" />}
                       <span>
                         {isSolicitado && 'Solicitado'}
-                        {isCotacao && 'Em Cotação'}
+                        {isCotacao && 'Aguardando Aprovação'}
                         {isComprado && 'Pedido Emitido'}
                         {isParcial && 'Recebido Parcial'}
                         {isRecebido && 'Recebido / Entregue'}
@@ -821,7 +821,7 @@ export const RequestsView: React.FC = () => {
                           className="px-3.5 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                         >
                           <FileText className="w-3.5 h-3.5" />
-                          <span>Em Cotação</span>
+                          <span>Aguardando Aprovação</span>
                         </button>
                         <button
                           onClick={() => updateRequestStatus(req.id, 'COMPRADO')}
@@ -1187,8 +1187,8 @@ export const RequestsView: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-purple-600" />
                       <div>
-                        <span className="text-xs font-bold text-slate-900 block">Em Cotação</span>
-                        <span className="text-[11px] text-slate-500">Pesquisando fornecedores e propostas comerciais</span>
+                        <span className="text-xs font-bold text-slate-900 block">Aguardando Aprovação</span>
+                        <span className="text-[11px] text-slate-500">Pesquisando fornecedores e aguardando aprovação</span>
                       </div>
                     </div>
                   </div>
