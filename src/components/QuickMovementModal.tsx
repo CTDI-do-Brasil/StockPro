@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStock } from '../context/StockContext';
+import { useAuth } from '../context/AuthContext';
 import { StockItem, MovementType, Department } from '../types';
 import confetti from 'canvas-confetti';
 
@@ -17,13 +18,13 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
   initialType = 'SAIDA'
 }) => {
   const { items, registerMovement } = useStock();
+  const { user } = useAuth();
 
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [type, setType] = useState<MovementType>(initialType);
   const [quantity, setQuantity] = useState<number>(1);
   const [reason, setReason] = useState<string>('');
   const [costCenter, setCostCenter] = useState<string>('TI');
-  const [responsibleUser, setResponsibleUser] = useState<string>('Operador Almoxarifado');
   const [notes, setNotes] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
@@ -102,9 +103,9 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
       type,
       quantity,
       reason,
-      requester: responsibleUser.trim() || 'Almoxarifado',
+      requester: user?.name || 'Operador Almoxarifado',
       costCenter: costCenter.trim() || undefined,
-      responsibleUser: responsibleUser.trim() || 'Almoxarifado',
+      responsibleUser: user?.name || 'Operador Almoxarifado',
       notes: notes.trim() || undefined
     });
 
@@ -305,32 +306,19 @@ export const QuickMovementModal: React.FC<QuickMovementModalProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-1">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Departamento:
-              </label>
-              <select
-                value={costCenter}
-                onChange={(e) => setCostCenter(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500 font-medium cursor-pointer"
-              >
-                <option value="TI">TI</option>
-                <option value="ENGENHARIA">Engenharia</option>
-                <option value="MANUTENCAO">Manutenção</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Operador do Almoxarifado:
-              </label>
-              <input
-                type="text"
-                value={responsibleUser}
-                onChange={(e) => setResponsibleUser(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500"
-              />
-            </div>
+          <div className="pt-1">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Departamento:
+            </label>
+            <select
+              value={costCenter}
+              onChange={(e) => setCostCenter(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2 outline-hidden focus:border-blue-500 font-medium cursor-pointer"
+            >
+              <option value="TI">TI</option>
+              <option value="ENGENHARIA">Engenharia</option>
+              <option value="MANUTENCAO">Manutenção</option>
+            </select>
           </div>
 
           {/* Modal Actions */}
